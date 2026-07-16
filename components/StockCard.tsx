@@ -1,3 +1,6 @@
+import StockChart from "@/components/StockChart";
+import { sampleStockData } from "@/lib/sampleData";
+
 type StockCardProps = {
   name: string;
   ticker: string;
@@ -98,18 +101,13 @@ export default function StockCard({
       >
         <div
           style={{
-            height: "190px",
             borderRadius: "12px",
-            background:
-              "linear-gradient(180deg, #f7fafc 0%, #edf3f8 100%)",
             border: "1px solid #dce6ee",
-            display: "grid",
-            placeItems: "center",
-            color: "#62788c",
-            fontWeight: 700,
+            overflow: "hidden",
+            background: "#ffffff",
           }}
         >
-          真实K线图区域
+          <StockChart data={sampleStockData} />
         </div>
 
         <p
