@@ -1,12 +1,14 @@
-import StockChart from "@/components/StockChart";
-import { sampleStockData } from "@/lib/sampleData";
+"use client";
 
-type StockCardProps = {
+import { useEffect, useState } from "react";
+
+import StockChart from "@/components/StockChart";
+import { getStockData } from "@/lib/stockService";
+
+type Props = {
   name: string;
   ticker: string;
   market: string;
-  price: string;
-  change: string;
   decision: "BUY" | "WAIT" | "AVOID";
   summary: string;
 };
@@ -21,117 +23,110 @@ export default function StockCard({
   name,
   ticker,
   market,
-  price,
-  change,
   decision,
   summary,
-}: StockCardProps) {
-  const isPositive = !change.startsWith("-");
+}: Props) {
+
+  const [stock, setStock] = useState<any>();
+
+  useEffect(() => {
+    getStockData(ticker)
+      .then(setStock)
+      .catch(console.error);
+  }, [ticker]);
+
+  if (!stock) {
+    return (
+      <article
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          padding: 24,
+          border: "1px solid #d6e1ea",
+        }}
+      >
+        正在读取 {ticker} ...
+      </article>
+    );
+  }
+
+  const change =
+    stock.marketPrice - stock.previousClose;
+
+  const changeRate =
+    (change / stock.previousClose) * 100;
 
   return (
     <article
       style={{
-        background: "#ffffff",
-        border: "1px solid #d6e1ea",
-        borderRadius: "16px",
+        background: "#fff",
+        borderRadius: 16,
         overflow: "hidden",
-        boxShadow: "0 8px 24px rgba(20, 48, 72, 0.08)",
+        border: "1px solid #d6e1ea",
       }}
     >
       <div
         style={{
           background: "#08131d",
-          color: "#ffffff",
-          padding: "16px",
+          color: "#fff",
+          padding: 18,
           display: "flex",
           justifyContent: "space-between",
-          gap: "16px",
         }}
       >
         <div>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "20px",
-            }}
-          >
-            {name}
-          </h2>
+          <h2>{name}</h2>
 
-          <p
-            style={{
-              margin: "5px 0 0",
-              color: "#a8bfd1",
-              fontSize: "13px",
-            }}
-          >
+          <div>
             {ticker} · {market}
-          </p>
+          </div>
         </div>
 
-        <div
-          style={{
-            textAlign: "right",
-          }}
-        >
-          <strong
-            style={{
-              fontSize: "18px",
-            }}
-          >
-            {price}
-          </strong>
+        <div style={{ textAlign: "right" }}>
+          <h2>
+            {stock.marketPrice.toFixed(2)}
+          </h2>
 
           <div
             style={{
-              marginTop: "5px",
-              color: isPositive ? "#29c386" : "#f16b6b",
-              fontWeight: 700,
+              color:
+                change >= 0
+                  ? "#29c386"
+                  : "#f16b6b",
             }}
           >
-            {change}
+            {change.toFixed(2)}
+            （{changeRate.toFixed(2)}%）
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "18px",
-        }}
-      >
-        <div
-          style={{
-            borderRadius: "12px",
-            border: "1px solid #dce6ee",
-            overflow: "hidden",
-            background: "#ffffff",
-          }}
-        >
-          <StockChart data={sampleStockData} />
-        </div>
+      <div style={{ padding: 18 }}>
 
-        <p
-          style={{
-            color: "#52697d",
-            lineHeight: 1.65,
-            fontSize: "14px",
-          }}
-        >
-          {summary}
-        </p>
+        <StockChart
+          candles={stock.candles}
+          ma5={stock.ma5}
+          ma25={stock.ma25}
+          ma75={stock.ma75}
+        />
+
+        <p>{summary}</p>
 
         <div
           style={{
-            background: decisionColor[decision],
-            color: "#ffffff",
-            borderRadius: "10px",
-            padding: "11px",
+            marginTop: 18,
+            background:
+              decisionColor[decision],
+            color: "#fff",
             textAlign: "center",
-            fontWeight: 900,
+            padding: 12,
+            borderRadius: 10,
+            fontWeight: 700,
           }}
         >
           {decision}
         </div>
+
       </div>
     </article>
   );
