@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import StockChart from "@/components/StockChart";
-import { getStockData } from "@/lib/stockService";
+import {
+  getStockData,
+  type StockData,
+} from "@/lib/stockService";
 
 type Props = {
   name: string;
@@ -26,40 +28,65 @@ export default function StockCard({
   decision,
   summary,
 }: Props) {
-
-  const [stock, setStock] = useState<any>();
+  const [stock, setStock] = useState<StockData | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    setStock(null);
+    setError("");
+
     getStockData(ticker)
       .then(setStock)
-      .catch(console.error);
+      .catch((err) => {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "行情数据读取失败"
+        );
+      });
   }, [ticker]);
+
+  if (error) {
+    return (
+      <article
+        style={{
+          background: "#ffffff",
+          borderRadius: 16,
+          padding: 24,
+          border: "1px solid #d6e1ea",
+          color: "#c94343",
+        }}
+      >
+        {ticker}：{error}
+      </article>
+    );
+  }
 
   if (!stock) {
     return (
       <article
         style={{
-          background: "#fff",
+          background: "#ffffff",
           borderRadius: 16,
           padding: 24,
           border: "1px solid #d6e1ea",
         }}
       >
-        正在读取 {ticker} ...
+        正在读取 {ticker} 的真实行情……
       </article>
     );
   }
 
-  const change =
-    stock.marketPrice - stock.previousClose;
-
+  const change = stock.marketPrice - stock.previousClose;
   const changeRate =
-    (change / stock.previousClose) * 100;
+    stock.previousClose !== 0
+      ? (change / stock.previousClose) * 100
+      : 0;
 
   return (
     <article
       style={{
-        background: "#fff",
+        background: "#ffffff",
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid #d6e1ea",
@@ -68,33 +95,44 @@ export default function StockCard({
       <div
         style={{
           background: "#08131d",
-          color: "#fff",
+          color: "#ffffff",
           padding: 18,
           display: "flex",
           justifyContent: "space-between",
+          gap: 16,
         }}
       >
         <div>
-          <h2>{name}</h2>
+          <h2 style={{ margin: 0 }}>
+            {name}
+          </h2>
 
-          <div>
-            {ticker} · {market}
+          <div
+            style={{
+              marginTop: 6,
+              color: "#a8bfd1",
+            }}
+          >
+            {ticker} · {stock.exchange || market}
           </div>
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <h2>
+          <h2 style={{ margin: 0 }}>
+            {stock.currency}{" "}
             {stock.marketPrice.toFixed(2)}
           </h2>
 
           <div
             style={{
+              marginTop: 6,
               color:
                 change >= 0
                   ? "#29c386"
                   : "#f16b6b",
             }}
           >
+            {change >= 0 ? "+" : ""}
             {change.toFixed(2)}
             （{changeRate.toFixed(2)}%）
           </div>
@@ -102,7 +140,6 @@ export default function StockCard({
       </div>
 
       <div style={{ padding: 18 }}>
-
         <StockChart
           candles={stock.candles}
           ma5={stock.ma5}
@@ -110,14 +147,20 @@ export default function StockCard({
           ma75={stock.ma75}
         />
 
-        <p>{summary}</p>
+        <p
+          style={{
+            color: "#52697d",
+            lineHeight: 1.65,
+          }}
+        >
+          {summary}
+        </p>
 
         <div
           style={{
             marginTop: 18,
-            background:
-              decisionColor[decision],
-            color: "#fff",
+            background: decisionColor[decision],
+            color: "#ffffff",
             textAlign: "center",
             padding: 12,
             borderRadius: 10,
@@ -126,7 +169,6 @@ export default function StockCard({
         >
           {decision}
         </div>
-
       </div>
     </article>
   );
