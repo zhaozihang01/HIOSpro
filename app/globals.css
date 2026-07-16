@@ -1,0 +1,34 @@
+:root {
+  --background: #eef3f8;
+  --card: #ffffff;
+  --text: #10273a;
+  --muted: #62788c;
+  --primary: #0b2a4a;
+  --border: #d6e1ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--text);
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans SC",
+    sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
