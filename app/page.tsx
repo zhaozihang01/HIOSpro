@@ -1,48 +1,52 @@
+import Header from "@/components/Header";
+import StockCard from "@/components/StockCard";
+
 export default function Home() {
   return (
     <main
       style={{
-        minHeight: "100vh",
-        background: "#eef3f8",
-        padding: "40px",
-        fontFamily: "Arial, sans-serif"
+        maxWidth: "1400px",
+        margin: "40px auto",
+        padding: "20px",
       }}
     >
-      <h1
-        style={{
-          fontSize: "42px",
-          color: "#0b2a4a",
-          marginBottom: "10px"
-        }}
-      >
-        HIOS Morning Research
-      </h1>
-
-      <p
-        style={{
-          color: "#555",
-          fontSize: "18px",
-          marginBottom: "40px"
-        }}
-      >
-        HIOS V1.0 开发中...
-      </p>
+      <Header />
 
       <div
         style={{
-          background: "white",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 6px 20px rgba(0,0,0,.08)"
+          display: "grid",
+          gap: "24px",
         }}
       >
-        <h2>今日研究对象</h2>
+        <StockCard
+          name="东京海上"
+          ticker="8766.T"
+          market="TSE"
+          price="¥5,860"
+          change="+1.52%"
+          decision="BUY"
+          summary="保险行业龙头，长期趋势保持向上，目前处于75日均线之上，属于重点观察对象。"
+        />
 
-        <ul>
-          <li>东京海上（8766.T）</li>
-          <li>Microsoft（MSFT）</li>
-          <li>Broadcom（AVGO）</li>
-        </ul>
+        <StockCard
+          name="Microsoft"
+          ticker="MSFT"
+          market="NASDAQ"
+          price="$514.12"
+          change="+0.63%"
+          decision="WAIT"
+          summary="AI业务继续推动业绩增长，但短线涨幅较大，等待更好的买入位置。"
+        />
+
+        <StockCard
+          name="Broadcom"
+          ticker="AVGO"
+          market="NASDAQ"
+          price="$309.75"
+          change="-0.41%"
+          decision="BUY"
+          summary="AI基础设施需求依旧强劲，中长期逻辑没有改变，可持续关注。"
+        />
       </div>
     </main>
   );
