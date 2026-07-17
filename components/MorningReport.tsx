@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import {
+  getMarketSnapshot,
+  type MarketSnapshot,
+} from "@/lib/marketService";
 export default function MorningReport() {
   const [japanTime, setJapanTime] = useState("");
-
+const [market, setMarket] = useState<MarketSnapshot | null>(null);
   useEffect(() => {
     function updateJapanTime() {
       const now = new Date();
@@ -25,7 +28,7 @@ export default function MorningReport() {
     }
 
     updateJapanTime();
-
+getMarketSnapshot().then(setMarket);
     const timer = window.setInterval(updateJapanTime, 1000);
 
     return () => window.clearInterval(timer);
@@ -55,9 +58,17 @@ export default function MorningReport() {
       </div>
 
       <div style={{ lineHeight: 1.8 }}>
-        <div>📈 Nikkei225　+0.82%</div>
-        <div>📈 TOPIX　　　+0.65%</div>
-        <div>💵 USDJPY　　148.72</div>
+        <div>
+  📈 Nikkei225　{market ? `+${market.nikkei.toFixed(2)}%` : "..."}
+</div>
+
+<div>
+  📈 TOPIX　　　{market ? `+${market.topix.toFixed(2)}%` : "..."}
+</div>
+
+<div>
+  💵 USDJPY　　{market ? market.usdJpy.toFixed(2) : "..."}
+</div>
       </div>
 
       <hr style={{ margin: "16px 0" }} />
