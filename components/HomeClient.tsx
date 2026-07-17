@@ -10,6 +10,11 @@ import Watchlist from "@/components/Watchlist";
 
 export default function HomeClient() {
   const [stocks, setStocks] = useState<StockItem[]>(defaultWatchlist);
+  function handleRemove(ticker: string) {
+  setStocks((current) =>
+    current.filter((stock) => stock.ticker !== ticker)
+  );
+}
 useEffect(() => {
   const saved = window.localStorage.getItem("hios-watchlist");
 
@@ -82,6 +87,7 @@ useEffect(() => {
       behavior: "smooth",
     });
   }}
+    onRemove={handleRemove}
 />
 
   <StockSearch onSearch={handleSearch} />
