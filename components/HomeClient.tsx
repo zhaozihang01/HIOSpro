@@ -5,7 +5,7 @@ import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
 import { StockItem, defaultWatchlist } from "@/data/watchlist";
 import MorningReport from "@/components/MorningReport";
-
+import Watchlist from "@/components/Watchlist";
 
 
 export default function HomeClient() {
@@ -48,8 +48,14 @@ export default function HomeClient() {
 
   return (
     <>
-      <MorningReport />
-      <StockSearch onSearch={handleSearch} />
+  <MorningReport />
+
+  <Watchlist
+    items={stocks}
+    onSelect={handleSearch}
+  />
+
+  <StockSearch onSearch={handleSearch} />
 
       <div
         style={{
