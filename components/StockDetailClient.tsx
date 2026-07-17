@@ -65,6 +65,7 @@ const hios = stock
         ticker={ticker}
         score={hios.score}
 label={hios.label}
+ breakdown={hios.breakdown}       
       />
 
       {stock && (
