@@ -115,7 +115,10 @@ export default function StockCard({
     fontWeight: 700,
   }}
 >
-  HIOS Score: {hios.score} / 100 ・ {hios.label}
+  {"★".repeat(hios.stars)}
+{"☆".repeat(5 - hios.stars)}
+{"  "}
+HIOS Score: {hios.score} / 100 ・ {hios.label}
 </div>
           <div
             style={{
