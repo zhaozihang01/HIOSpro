@@ -3,13 +3,20 @@ type Props = {
   ticker: string;
   score: number;
   label: string;
+  breakdown: {
+    technical: number;
+    trend: number;
+    risk: number;
+    ai: number;
+  };
 };
 
 export default function AIResearch({
-  name,
-  ticker,
-  score,
-  label,
+ name,
+ticker,
+score,
+label,
+breakdown,
 }: Props) {
     const analysis =
     score >= 90
