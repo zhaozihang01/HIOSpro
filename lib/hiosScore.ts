@@ -29,7 +29,12 @@ export function getHiosScore(symbol: string): HiosRating {
     AVGO: {
       technical: 27,
       trend: 19,
+      risk: 17,
+      ai: 27,
+    },
+  };
 
+  const breakdown =
     breakdowns[symbol.toUpperCase() as keyof typeof breakdowns] ?? {
       technical: 20,
       trend: 16,
@@ -39,9 +44,10 @@ export function getHiosScore(symbol: string): HiosRating {
 
   const result = calculateHiosScore(breakdown);
 
-return {
-  score: result.totalScore,
-  stars: result.stars,
-  label: result.label,
-  breakdown: result.breakdown,
-};
+  return {
+    score: result.totalScore,
+    stars: result.stars,
+    label: result.label,
+    breakdown: result.breakdown,
+  };
+}
