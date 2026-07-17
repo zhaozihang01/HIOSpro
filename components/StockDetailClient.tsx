@@ -8,7 +8,10 @@ import {
   getStockData,
   type StockData,
 } from "@/lib/stockService";
-import { getHiosScore } from "@/lib/hiosScore";
+import {
+  getHiosScore,
+  getRealHiosScore,
+} from "@/lib/hiosScore";
 type Props = {
   name: string;
   ticker: string;
@@ -34,9 +37,11 @@ export default function StockDetailClient({
   name,
   ticker,
 }: Props) {
-  const hios = getHiosScore(ticker);
+  
   const [stock, setStock] = useState<StockData | null>(null);
-
+const hios = stock
+  ? getRealHiosScore(stock)
+  : getHiosScore(ticker);
   useEffect(() => {
     getStockData(ticker)
       .then(setStock)
