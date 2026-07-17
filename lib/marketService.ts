@@ -42,7 +42,8 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
       fetchMarketData("1306.T"),
       fetchMarketData("JPY=X"),
     ]);
-
+console.log("Nikkei data:", nikkeiData);
+console.log("TOPIX data:", topixData);
     return {
       nikkei: calculateChange(
         nikkeiData.marketPrice,
