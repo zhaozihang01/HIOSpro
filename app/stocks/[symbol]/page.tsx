@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import StockCard from "@/components/StockCard";
-
+import AIResearch from "@/components/AIResearch";
 type Props = {
   params: Promise<{
     symbol: string;
@@ -49,6 +49,10 @@ export default async function StockDetailPage({ params }: Props) {
         decision="WAIT"
         summary="正在分析该股票的行情、技术趋势与 HIOS 评分。"
       />
+      <AIResearch
+  symbol={ticker}
+  company={name}
+/>
     </main>
   );
 }
