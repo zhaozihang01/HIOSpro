@@ -51,9 +51,15 @@ export default function HomeClient() {
   <MorningReport />
 
   <Watchlist
-    items={stocks}
-    onSelect={handleSearch}
-  />
+  items={stocks}
+  onSelect={(ticker) => {
+    handleSearch(ticker);
+    window.scrollTo({
+      top: 520,
+      behavior: "smooth",
+    });
+  }}
+/>
 
   <StockSearch onSearch={handleSearch} />
 
