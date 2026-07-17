@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import StockCard from "@/components/StockCard";
 import AIResearch from "@/components/AIResearch";
+import MarketStats from "@/components/MarketStats";
 type Props = {
   params: Promise<{
     symbol: string;
@@ -55,6 +56,14 @@ export default async function StockDetailPage({ params }: Props) {
   score={88}
   label="BUY"
 />
+ <MarketStats
+  open={7480}
+  high={7555}
+  low={7442}
+  volume="3.62M"
+  pe={15.8}
+  marketCap="¥10.7T"
+/>     
     </main>
   );
 }
