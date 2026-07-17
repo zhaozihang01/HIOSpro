@@ -81,16 +81,16 @@ useEffect(() => {
   <Watchlist
   items={stocks}
   onSelect={(ticker) => {
-    handleSearch(ticker);
-    window.scrollTo({
-      top: 520,
-      behavior: "smooth",
-    });
+    window.location.href = "/stocks/" + ticker;
   }}
-    onRemove={handleRemove}
+  onRemove={handleRemove}
 />
 
-  <StockSearch onSearch={handleSearch} />
+  <StockSearch
+  onSearch={(ticker) => {
+    window.location.href = "/stocks/" + ticker;
+  }}
+/>
 
       <div
         style={{
