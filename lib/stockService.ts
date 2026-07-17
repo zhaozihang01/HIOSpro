@@ -15,6 +15,10 @@ export type StockData = {
   previousClose: number;
   currency: string;
   exchange: string;
+  open: number;
+high: number;
+low: number;
+volume: number;
   candles: Candle[];
   ma5: (number | null)[];
   ma25: (number | null)[];
@@ -38,13 +42,18 @@ export async function getStockData(
   const closes = json.data.map(
     (item: Candle) => item.close
   );
-
+const latestCandle =
+  json.data[json.data.length - 1] as Candle | undefined;
   return {
     symbol: json.symbol,
     marketPrice: json.marketPrice,
     previousClose: json.previousClose,
     currency: json.currency,
     exchange: json.exchange,
+    open: latestCandle?.open ?? json.marketPrice,
+high: latestCandle?.high ?? json.marketPrice,
+low: latestCandle?.low ?? json.marketPrice,
+volume: latestCandle?.volume ?? 0,
     candles: json.data,
     ma5: movingAverage(closes, 5),
     ma25: movingAverage(closes, 25),
