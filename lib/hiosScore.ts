@@ -1,3 +1,5 @@
+import { calculateHiosScore } from "@/lib/hiosEngine";
+
 export type HiosRating = {
   score: number;
   stars: number;
@@ -5,29 +7,40 @@ export type HiosRating = {
 };
 
 export function getHiosScore(symbol: string): HiosRating {
-  const scores: Record<string, HiosRating> = {
+  const breakdowns = {
     "8766.T": {
-      score: 92,
-      stars: 5,
-      label: "Strong Buy",
+      technical: 28,
+      trend: 19,
+      risk: 17,
+      ai: 28,
     },
     MSFT: {
-      score: 88,
-      stars: 4,
-      label: "Buy",
+      technical: 25,
+      trend: 18,
+      risk: 18,
+      ai: 27,
     },
     AVGO: {
-      score: 90,
-      stars: 5,
-      label: "Strong Buy",
+      technical: 27,
+      trend: 19,
+      risk: 17,
+      ai: 27,
     },
   };
 
-  return (
-    scores[symbol.toUpperCase()] ?? {
-      score: 75,
-      stars: 3,
-      label: "Watch",
-    }
-  );
+  const breakdown =
+    breakdowns[symbol.toUpperCase() as keyof typeof breakdowns] ?? {
+      technical: 20,
+      trend: 16,
+      risk: 17,
+      ai: 22,
+    };
+
+  const result = calculateHiosScore(breakdown);
+
+  return {
+    score: result.totalScore,
+    stars: result.stars,
+    label: result.label,
+  };
 }
