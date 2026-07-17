@@ -1,7 +1,5 @@
 import Header from "@/components/Header";
-import StockCard from "@/components/StockCard";
-import AIResearch from "@/components/AIResearch";
-import MarketStats from "@/components/MarketStats";
+import StockDetailClient from "@/components/StockDetailClient";
 type Props = {
   params: Promise<{
     symbol: string;
@@ -43,26 +41,9 @@ export default async function StockDetailPage({ params }: Props) {
         首页 / 股票详情 / {ticker}
       </div>
 
-      <StockCard
-        name={name}
-        ticker={ticker}
-        market={ticker.endsWith(".T") ? "TSE" : "US"}
-        decision="WAIT"
-        summary="正在分析该股票的行情、技术趋势与 HIOS 评分。"
-      />
-      <AIResearch
+      <StockDetailClient
   name={name}
   ticker={ticker}
-  score={88}
-  label="BUY"
-/>
- <MarketStats
-  open={7480}
-  high={7555}
-  low={7442}
-  volume="3.62M"
-  pe={15.8}
-  marketCap="¥10.7T"
 />     
     </main>
   );
