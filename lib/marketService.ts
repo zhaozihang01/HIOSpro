@@ -4,86 +4,59 @@ export type MarketSnapshot = {
   usdJpy: number;
 };
 
-type YahooChartResponse = {
-  chart?: {
-    result?: Array<{
-      meta?: {
-        regularMarketPrice?: number;
-        chartPreviousClose?: number;
-      };
-    }>;
-  };
+type MarketApiResponse = {
+  marketPrice: number;
+  previousClose: number;
 };
 
-async function fetchYahooChange(symbol: string): Promise<number> {
+async function fetchMarketData(symbol: string): Promise<MarketApiResponse> {
   const response = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-      symbol
-    )}?range=5d&interval=1d`,
+    `/api/market/${encodeURIComponent(symbol)}`,
     {
       cache: "no-store",
     }
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${symbol}`);
+    throw new Error(`获取 ${symbol} 失败`);
   }
 
-  const data: YahooChartResponse = await response.json();
-  const meta = data.chart?.result?.[0]?.meta;
-
-  const price = meta?.regularMarketPrice;
-  const previousClose = meta?.chartPreviousClose;
-
-  if (
-    typeof price !== "number" ||
-    typeof previousClose !== "number" ||
-    previousClose === 0
-  ) {
-    throw new Error(`Invalid market data for ${symbol}`);
-  }
-
-  return ((price - previousClose) / previousClose) * 100;
+  return response.json();
 }
 
-async function fetchYahooPrice(symbol: string): Promise<number> {
-  const response = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-      symbol
-    )}?range=1d&interval=1d`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${symbol}`);
+function calculateChange(
+  marketPrice: number,
+  previousClose: number
+): number {
+  if (previousClose === 0) {
+    return 0;
   }
 
-  const data: YahooChartResponse = await response.json();
-  const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-
-  if (typeof price !== "number") {
-    throw new Error(`Invalid market data for ${symbol}`);
-  }
-
-  return price;
+  return ((marketPrice - previousClose) / previousClose) * 100;
 }
 
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   try {
-    const [nikkei, topix, usdJpy] = await Promise.all([
-      fetchYahooChange("^N225"),
-      fetchYahooChange("^TOPX"),
-      fetchYahooPrice("JPY=X"),
+    const [nikkeiData, topixData, usdJpyData] = await Promise.all([
+      fetchMarketData("^N225"),
+      fetchMarketData("^TOPX"),
+      fetchMarketData("JPY=X"),
     ]);
 
     return {
-      nikkei,
-      topix,
-      usdJpy,
+      nikkei: calculateChange(
+        nikkeiData.marketPrice,
+        nikkeiData.previousClose
+      ),
+      topix: calculateChange(
+        topixData.marketPrice,
+        topixData.previousClose
+      ),
+      usdJpy: usdJpyData.marketPrice,
     };
-  } catch {
+  } catch (error) {
+    console.error("市场数据读取失败：", error);
+
     return {
       nikkei: 0,
       topix: 0,
