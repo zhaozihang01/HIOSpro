@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
 import { StockItem, defaultWatchlist } from "@/data/watchlist";
@@ -10,7 +10,30 @@ import Watchlist from "@/components/Watchlist";
 
 export default function HomeClient() {
   const [stocks, setStocks] = useState<StockItem[]>(defaultWatchlist);
+useEffect(() => {
+  const saved = window.localStorage.getItem("hios-watchlist");
 
+  if (!saved) {
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as StockItem[];
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      setStocks(parsed);
+    }
+  } catch {
+    console.error("Watchlist 读取失败");
+  }
+}, []);
+
+useEffect(() => {
+  window.localStorage.setItem(
+    "hios-watchlist",
+    JSON.stringify(stocks)
+  );
+}, [stocks]);
   function handleSearch(symbol: string) {
     const exists = stocks.some(
       (stock) => stock.ticker.toUpperCase() === symbol.toUpperCase()
