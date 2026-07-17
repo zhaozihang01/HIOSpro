@@ -7,9 +7,20 @@ type Props = {
   }>;
 };
 
+const stockNames: Record<string, string> = {
+  "8766.T": "东京海上HD",
+  MSFT: "Microsoft",
+  AVGO: "Broadcom",
+  NVDA: "NVIDIA",
+  AAPL: "Apple",
+  "7203.T": "Toyota",
+  "8306.T": "三菱UFJ",
+};
+
 export default async function StockDetailPage({ params }: Props) {
   const { symbol } = await params;
   const ticker = decodeURIComponent(symbol).toUpperCase();
+  const name = stockNames[ticker] ?? ticker;
 
   return (
     <main
@@ -28,15 +39,15 @@ export default async function StockDetailPage({ params }: Props) {
           color: "#60758a",
         }}
       >
-        Stock Detail / {ticker}
+        首页 / 股票详情 / {ticker}
       </div>
 
       <StockCard
-        name={ticker}
+        name={name}
         ticker={ticker}
         market={ticker.endsWith(".T") ? "TSE" : "US"}
         decision="WAIT"
-        summary="正在加载该股票的行情、技术指标与 HIOS 分析。"
+        summary="正在分析该股票的行情、技术趋势与 HIOS 评分。"
       />
     </main>
   );
