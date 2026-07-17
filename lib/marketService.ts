@@ -39,7 +39,7 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   try {
     const [nikkeiData, topixData, usdJpyData] = await Promise.all([
       fetchMarketData("^N225"),
-      fetchMarketData("^TOPX"),
+      fetchMarketData("1306.T"),
       fetchMarketData("JPY=X"),
     ]);
 
