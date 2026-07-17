@@ -4,7 +4,7 @@ import { useState } from "react";
 import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
 import { StockItem, defaultWatchlist } from "@/data/watchlist";
-
+import MorningReport from "@/components/MorningReport";
 
 
 
@@ -48,6 +48,7 @@ export default function HomeClient() {
 
   return (
     <>
+      <MorningReport />
       <StockSearch onSearch={handleSearch} />
 
       <div
