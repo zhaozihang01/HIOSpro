@@ -1,5 +1,5 @@
 "use client";
-
+import { getHiosScore } from "@/lib/hiosScore";
 import { useEffect, useState } from "react";
 import StockChart from "@/components/StockChart";
 import {
@@ -28,6 +28,7 @@ export default function StockCard({
   decision,
   summary,
 }: Props) {
+  const hios = getHiosScore(ticker);
   const [stock, setStock] = useState<StockData | null>(null);
   const [error, setError] = useState("");
 
@@ -106,7 +107,16 @@ export default function StockCard({
           <h2 style={{ margin: 0 }}>
             {name}
           </h2>
-
+<div
+  style={{
+    marginTop: 6,
+    fontSize: 14,
+    color: "#4caf50",
+    fontWeight: 700,
+  }}
+>
+  HIOS Score: {hios.score} / 100 ・ {hios.label}
+</div>
           <div
             style={{
               marginTop: 6,
