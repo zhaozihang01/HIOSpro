@@ -1,4 +1,36 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 export default function MorningReport() {
+  const [japanTime, setJapanTime] = useState("");
+
+  useEffect(() => {
+    function updateJapanTime() {
+      const now = new Date();
+
+      const formatted = new Intl.DateTimeFormat("zh-CN", {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).format(now);
+
+      setJapanTime(`${formatted} JST`);
+    }
+
+    updateJapanTime();
+
+    const timer = window.setInterval(updateJapanTime, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <section
       style={{
@@ -19,7 +51,7 @@ export default function MorningReport() {
       </h2>
 
       <div style={{ color: "#666", marginBottom: 16 }}>
-        2026-07-18 08:30 JST
+        {japanTime || "正在读取日本时间…"}
       </div>
 
       <div style={{ lineHeight: 1.8 }}>
@@ -35,8 +67,7 @@ export default function MorningReport() {
       </div>
 
       <div style={{ color: "#333", lineHeight: 1.8 }}>
-        今天保险、银行板块保持强势，
-        AI 半导体高位震荡，
+        今天保险、银行板块保持强势，AI 半导体高位震荡，
         建议重点关注东京海上HD。
       </div>
     </section>
