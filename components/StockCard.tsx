@@ -120,6 +120,42 @@ export default function StockCard({
 {"  "}
 HIOS Score: {hios.score} / 100 ・ {hios.label}
 </div>
+        <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: 8,
+    marginTop: 12,
+  }}
+>
+  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
+    Technical
+    <div style={{ color: "#ffffff", fontWeight: 700 }}>
+      {hios.breakdown.technical} / 30
+    </div>
+  </div>
+
+  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
+    Trend
+    <div style={{ color: "#ffffff", fontWeight: 700 }}>
+      {hios.breakdown.trend} / 20
+    </div>
+  </div>
+
+  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
+    Risk
+    <div style={{ color: "#ffffff", fontWeight: 700 }}>
+      {hios.breakdown.risk} / 20
+    </div>
+  </div>
+
+  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
+    AI
+    <div style={{ color: "#ffffff", fontWeight: 700 }}>
+      {hios.breakdown.ai} / 30
+    </div>
+  </div>
+</div>  
           <div
             style={{
               marginTop: 6,
