@@ -76,9 +76,9 @@ export async function GET(
         data[data.length - 1]?.close ??
         null,
       previousClose:
-        result.meta?.chartPreviousClose ??
-        data[data.length - 2]?.close ??
-        null,
+  data[data.length - 2]?.close ??
+  result.meta?.chartPreviousClose ??
+  null,
       exchange: result.meta?.exchangeName ?? "",
       data,
     });
