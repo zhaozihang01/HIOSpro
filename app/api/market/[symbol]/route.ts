@@ -70,6 +70,7 @@ export async function GET(
 
     return NextResponse.json({
       symbol,
+     name: result.meta?.shortName ?? result.meta?.longName ?? symbol, 
       currency: result.meta?.currency ?? "",
       marketPrice:
         result.meta?.regularMarketPrice ??
