@@ -55,11 +55,11 @@ const hios = stock
         console.error("股票详情读取失败：", error);
       });
   }, [ticker]);
-
+const displayName = stock?.name ?? name;
   return (
     <>
       <StockCard
-        name={name}
+        name={displayName}
         ticker={ticker}
         market={ticker.endsWith(".T") ? "TSE" : "US"}
        decision={stockDecision} 
@@ -68,7 +68,7 @@ const hios = stock
       />
 
       <AIResearch
-        name={name}
+        name={displayName}
         ticker={ticker}
         score={hios.score}
 label={hios.label}
