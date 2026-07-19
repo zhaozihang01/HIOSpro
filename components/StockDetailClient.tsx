@@ -56,7 +56,9 @@ const hios = stock
         name={name}
         ticker={ticker}
         market={ticker.endsWith(".T") ? "TSE" : "US"}
-        decision="WAIT"
+        decision={hios.label}
+        score={hios.score}
+breakdown={hios.breakdown}
         summary="正在分析该股票的行情、技术趋势与 HIOS 评分。"
       />
 
