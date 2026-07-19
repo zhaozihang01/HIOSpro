@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+
 import StockDetailClient from "@/components/StockDetailClient";
 type Props = {
   params: Promise<{
