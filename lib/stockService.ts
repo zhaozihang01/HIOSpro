@@ -11,6 +11,7 @@ export type Candle = {
 
 export type StockData = {
   symbol: string;
+  name: string;
   marketPrice: number;
   previousClose: number;
   currency: string;
@@ -46,6 +47,7 @@ const latestCandle =
   json.data[json.data.length - 1] as Candle | undefined;
   return {
     symbol: json.symbol,
+    name: json.name ?? json.symbol,
     marketPrice: json.marketPrice,
     previousClose: json.previousClose,
     currency: json.currency,
