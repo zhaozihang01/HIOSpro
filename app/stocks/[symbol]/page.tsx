@@ -1,5 +1,5 @@
 import Header from "@/components/Header";
-
+import { getStockData } from "@/lib/stockService";
 import StockDetailClient from "@/components/StockDetailClient";
 type Props = {
   params: Promise<{
