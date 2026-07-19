@@ -19,7 +19,7 @@ score,
 label,
 breakdown,
 }: Props) {
-   const analysis = generateAnalysis(score); 
+   const analysis = generateAnalysis(score, breakdown); 
   return (
     <section
       style={{
