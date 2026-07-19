@@ -42,6 +42,12 @@ export default function StockDetailClient({
 const hios = stock
   ? getRealHiosScore(stock)
   : getHiosScore(ticker);
+  const stockDecision =
+  hios.label === "Strong Buy" || hios.label === "Buy"
+    ? "BUY"
+    : hios.label === "Avoid"
+    ? "AVOID"
+    : "WAIT";
   useEffect(() => {
     getStockData(ticker)
       .then(setStock)
@@ -56,7 +62,7 @@ const hios = stock
         name={name}
         ticker={ticker}
         market={ticker.endsWith(".T") ? "TSE" : "US"}
-        decision={hios.label}
+       decision={stockDecision} 
         score={hios.score}
 breakdown={hios.breakdown}
         summary="正在分析该股票的行情、技术趋势与 HIOS 评分。"
