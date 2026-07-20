@@ -13,17 +13,17 @@ export type HiosAnalysis = {
 };
 
 function getLabel(score: number): HiosAnalysis["label"] {
-  if (score >= 90) return "Strong Buy";
-  if (score >= 80) return "Buy";
-  if (score >= 65) return "Watch";
+  if (score >= 85) return "Strong Buy";
+  if (score >= 70) return "Buy";
+  if (score >= 50) return "Watch";
   return "Avoid";
 }
 
 function getStars(score: number): number {
-  if (score >= 90) return 5;
-  if (score >= 80) return 4;
-  if (score >= 65) return 3;
-  if (score >= 50) return 2;
+  if (score >= 85) return 5;
+  if (score >= 70) return 4;
+  if (score >= 50) return 3;
+  if (score >= 30) return 2;
   return 1;
 }
 
