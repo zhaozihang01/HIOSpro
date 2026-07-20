@@ -20,6 +20,8 @@ export type StockData = {
 high: number;
 low: number;
 volume: number;
+  pe: number | null;
+marketCap: number | null;
   candles: Candle[];
   ma5: (number | null)[];
   ma25: (number | null)[];
@@ -52,6 +54,8 @@ const latestCandle =
     previousClose: json.previousClose,
     currency: json.currency,
     exchange: json.exchange,
+    pe: typeof json.pe === "number" ? json.pe : null,
+marketCap: typeof json.marketCap === "number" ? json.marketCap : null,
     open: latestCandle?.open ?? json.marketPrice,
 high: latestCandle?.high ?? json.marketPrice,
 low: latestCandle?.low ?? json.marketPrice,
