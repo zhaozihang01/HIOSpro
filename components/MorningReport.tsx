@@ -5,6 +5,7 @@ import {
   getMarketSnapshot,
   type MarketSnapshot,
 } from "@/lib/marketService";
+import { generateMarketAnalysis } from "@/lib/analysis";
 export default function MorningReport() {
   const [japanTime, setJapanTime] = useState("");
 const [market, setMarket] = useState<MarketSnapshot | null>(null);
@@ -33,27 +34,9 @@ getMarketSnapshot().then(setMarket);
 
     return () => window.clearInterval(timer);
   }, []);
-const summary = !market
-  ? "正在读取市场数据..."
-  : [
-      market.nikkei >= 1
-        ? "日本股市表现强劲，市场风险偏好明显上升。"
-        : market.nikkei <= -1
-          ? "日本股市出现明显回调，短线应注意控制仓位。"
-          : "日本股市整体波动有限，市场情绪暂时保持中性。",
-
-      market.topix >= 1
-        ? "TOPIX同步走强，金融和大型价值板块表现较好。"
-        : market.topix <= -1
-          ? "TOPIX走弱，市场整体承压。"
-          : "TOPIX表现相对平稳。",
-
-      market.usdJpy >= 150
-        ? "美元兑日元处于高位，日元偏弱，出口企业可能相对受益。"
-        : market.usdJpy <= 140
-          ? "日元相对偏强，出口板块盈利预期可能受到一定压力。"
-          : "美元兑日元处于中间区间，汇率影响暂时有限。",
-    ].join(" ");
+const analysis = market
+  ? generateMarketAnalysis(market)
+  : null;
   return (
     <section
       style={{
@@ -98,8 +81,20 @@ const summary = !market
       </div>
 
       <div style={{ color: "#333", lineHeight: 1.8 }}>
-        {summary}
-      </div>
+  {analysis ? analysis.summary : "Loading..."}
+</div>
+
+<br />
+
+<div style={{ color: "#333", lineHeight: 1.8 }}>
+  {analysis ? analysis.risk : ""}
+</div>
+
+<br />
+
+<div style={{ color: "#333", lineHeight: 1.8 }}>
+  {analysis ? analysis.strategy : ""}
+</div>
     </section>
   );
 }
