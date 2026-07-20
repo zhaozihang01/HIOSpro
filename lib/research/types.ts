@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@/lib/analysis";
+import type { AnalysisResult } from "@/lib/analysis/types";
 import type {
   StockChart,
   StockFundamentals,
