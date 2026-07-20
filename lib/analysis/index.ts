@@ -1,10 +1,34 @@
-export * from "./types";
+export type {
+  AnalysisResult,
+  IndicatorPoint,
+  IndicatorSeries,
+  PriceCandle,
+} from "./types";
 
-export * from "./service";
+export { analyze } from "./service";
 
-export * from "./ma";
-export * from "./ema";
-export * from "./macd";
-export * from "./rsi";
-export * from "./bollinger";
-export * from "./atr";
+export {
+  calculateMA,
+  calculateMAs,
+} from "./ma";
+
+export {
+  calculateEMA,
+  calculateEMAs,
+} from "./ema";
+
+export {
+  calculateMACD,
+} from "./macd";
+
+export {
+  calculateRSI,
+} from "./rsi";
+
+export {
+  calculateBollingerBands,
+} from "./bollinger";
+
+export {
+  calculateATR,
+} from "./atr";
