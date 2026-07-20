@@ -1,23 +1,23 @@
 import { StockFundamentals, StockQuote } from "./types";
+import { YahooProvider } from "./providers/yahoo";
+import { FinnhubProvider } from "./providers/finnhub";
 
 export interface MarketDataProvider {
   getQuote(symbol: string): Promise<StockQuote>;
-
   getFundamentals(symbol: string): Promise<StockFundamentals>;
 }
 
 export class MarketGateway {
-  private provider: MarketDataProvider;
-
-  constructor(provider: MarketDataProvider) {
-    this.provider = provider;
-  }
+  private yahoo = new YahooProvider();
+  private finnhub = new FinnhubProvider();
 
   async getQuote(symbol: string): Promise<StockQuote> {
-    return this.provider.getQuote(symbol);
+    return this.yahoo.getQuote(symbol);
   }
 
   async getFundamentals(symbol: string): Promise<StockFundamentals> {
-    return this.provider.getFundamentals(symbol);
+    return this.finnhub.getFundamentals(symbol);
   }
 }
+
+export const marketGateway = new MarketGateway();
