@@ -81,8 +81,12 @@ label={hios.label}
           high={stock.high}
           low={stock.low}
           volume={formatVolume(stock.volume)}
-          pe={0}
-          marketCap="--"
+          pe={stock.pe === null ? 0 : Number(stock.pe.toFixed(2))}
+marketCap={
+  stock.marketCap === null
+    ? "--"
+    : formatVolume(stock.marketCap)
+}
         />
       )}
     </>
