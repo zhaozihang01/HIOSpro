@@ -105,7 +105,7 @@ try {
         ? rawMarketCap
         : null;
   }
-  }
+  
 } catch {
   pe = null;
   marketCap = null;
