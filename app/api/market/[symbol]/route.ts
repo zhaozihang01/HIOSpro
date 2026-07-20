@@ -67,7 +67,40 @@ export async function GET(
           Number.isFinite(item.low) &&
           Number.isFinite(item.close)
       );
+let pe: number | null = null;
+let marketCap: number | null = null;
 
+try {
+  const quoteResponse = await fetch(
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+    {
+      next: {
+        revalidate: 900,
+      },
+      headers: {
+        "User-Agent": "Mozilla/5.0 HIOS",
+      },
+    }
+  );
+
+  if (quoteResponse.ok) {
+    const quotePayload = await quoteResponse.json();
+    const quoteResult = quotePayload?.quoteResponse?.result?.[0];
+
+    pe =
+      typeof quoteResult?.trailingPE === "number"
+        ? quoteResult.trailingPE
+        : null;
+
+    marketCap =
+      typeof quoteResult?.marketCap === "number"
+        ? quoteResult.marketCap
+        : null;
+  }
+} catch {
+  pe = null;
+  marketCap = null;
+}
     return NextResponse.json({
       symbol,
      name: result.meta?.shortName ?? result.meta?.longName ?? symbol, 
@@ -81,7 +114,9 @@ export async function GET(
   result.meta?.chartPreviousClose ??
   null,
       exchange: result.meta?.exchangeName ?? "",
-      data,
+pe,
+marketCap,
+data,
     });
   } catch (error) {
     return NextResponse.json(
