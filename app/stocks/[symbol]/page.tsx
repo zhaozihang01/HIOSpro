@@ -1,5 +1,5 @@
 import Header from "@/components/Header";
-import { getStockData } from "@/lib/stockService";
+
 import StockDetailClient from "@/components/StockDetailClient";
 type Props = {
   params: Promise<{
@@ -12,8 +12,7 @@ type Props = {
 export default async function StockDetailPage({ params }: Props) {
   const { symbol } = await params;
   const ticker = decodeURIComponent(symbol).toUpperCase();
-  const stock = await getStockData(ticker);
-const name = stock.name;
+  const name = ticker;
 
   return (
     <main
