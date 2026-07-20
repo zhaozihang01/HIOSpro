@@ -71,8 +71,8 @@ let pe: number | null = null;
 let marketCap: number | null = null;
 
 try {
-  const quoteResponse = await fetch(
-    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+  const summaryResponse = await fetch(
+    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail,defaultKeyStatistics,price`,
     {
       next: {
         revalidate: 900,
@@ -83,19 +83,28 @@ try {
     }
   );
 
-  if (quoteResponse.ok) {
-    const quotePayload = await quoteResponse.json();
-    const quoteResult = quotePayload?.quoteResponse?.result?.[0];
+  if (summaryResponse.ok) {
+    const summaryPayload = await summaryResponse.json();
+    const summaryResult =
+      summaryPayload?.quoteSummary?.result?.[0];
+
+    const trailingPE =
+      summaryResult?.summaryDetail?.trailingPE?.raw ??
+      summaryResult?.defaultKeyStatistics?.trailingPE?.raw;
+
+    const rawMarketCap =
+      summaryResult?.price?.marketCap?.raw;
 
     pe =
-      typeof quoteResult?.trailingPE === "number"
-        ? quoteResult.trailingPE
+      typeof trailingPE === "number"
+        ? trailingPE
         : null;
 
     marketCap =
-      typeof quoteResult?.marketCap === "number"
-        ? quoteResult.marketCap
+      typeof rawMarketCap === "number"
+        ? rawMarketCap
         : null;
+  }
   }
 } catch {
   pe = null;
