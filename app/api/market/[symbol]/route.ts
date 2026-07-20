@@ -83,7 +83,15 @@ try {
     }
   );
 
-  if (summaryResponse.ok) {
+  if (!summaryResponse.ok) {
+  const errorText = await summaryResponse.text();
+
+  console.error(
+    "quoteSummary 请求失败:",
+    summaryResponse.status,
+    errorText
+  );
+} else {
     const summaryPayload = await summaryResponse.json();
     const summaryResult =
       summaryPayload?.quoteSummary?.result?.[0];
