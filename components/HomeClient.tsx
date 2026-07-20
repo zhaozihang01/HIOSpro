@@ -104,7 +104,8 @@ useEffect(() => {
             name={stock.name}
             ticker={stock.ticker}
             market={stock.market}
-            
+            decision={stock.decision}
+summary={stock.summary}
           />
         ))}
       </div>
