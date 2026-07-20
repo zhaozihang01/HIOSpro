@@ -11,7 +11,7 @@ import {
 import {
   getHiosScore,
   getRealHiosScore,
-} from "@/lib/hiosScore";
+} from "@/lib/score";
 type Props = {
   name: string;
   ticker: string;
