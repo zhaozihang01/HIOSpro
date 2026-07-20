@@ -1,6 +1,7 @@
 import { MarketDataProvider } from "../gateway";
 import {
   DataMetadata,
+  StockChart,
   StockFundamentals,
   StockQuote,
 } from "../types";
@@ -18,11 +19,25 @@ interface YahooChartMeta {
   marketState?: string;
 }
 
+interface YahooChartQuote {
+  open?: Array<number | null>;
+  high?: Array<number | null>;
+  low?: Array<number | null>;
+  close?: Array<number | null>;
+  volume?: Array<number | null>;
+}
+
+interface YahooChartResult {
+  meta?: YahooChartMeta;
+  timestamp?: number[];
+  indicators?: {
+    quote?: YahooChartQuote[];
+  };
+}
+
 interface YahooChartResponse {
   chart?: {
-    result?: Array<{
-      meta?: YahooChartMeta;
-    }>;
+    result?: YahooChartResult[];
     error?: {
       code?: string;
       description?: string;
@@ -31,7 +46,9 @@ interface YahooChartResponse {
 }
 
 export class YahooProvider implements MarketDataProvider {
-  private createMetadata(status: DataMetadata["status"]): DataMetadata {
+  private createMetadata(
+    status: DataMetadata["status"]
+  ): DataMetadata {
     return {
       source: "yahoo",
       updatedAt: new Date().toISOString(),
@@ -39,16 +56,29 @@ export class YahooProvider implements MarketDataProvider {
     };
   }
 
-  async getQuote(symbol: string): Promise<StockQuote> {
+  private normalizeSymbol(symbol: string): string {
     const normalizedSymbol = symbol.trim().toUpperCase();
 
     if (!normalizedSymbol) {
       throw new Error("YahooProvider: symbol is required.");
     }
 
+    return normalizedSymbol;
+  }
+
+  private async fetchChartData(
+    symbol: string,
+    range: string,
+    interval: string
+  ): Promise<YahooChartResult> {
+    const normalizedSymbol = this.normalizeSymbol(symbol);
+
     const url =
       `https://query1.finance.yahoo.com/v8/finance/chart/` +
-      `${encodeURIComponent(normalizedSymbol)}?interval=1d&range=5d`;
+      `${encodeURIComponent(normalizedSymbol)}` +
+      `?range=${encodeURIComponent(range)}` +
+      `&interval=${encodeURIComponent(interval)}` +
+      `&includePrePost=false`;
 
     const response = await fetch(url, {
       headers: {
@@ -56,13 +86,13 @@ export class YahooProvider implements MarketDataProvider {
         "User-Agent": "HIOS-Morning-Research/1.0",
       },
       next: {
-        revalidate: 60,
+        revalidate: interval === "1d" ? 900 : 60,
       },
     });
 
     if (!response.ok) {
       throw new Error(
-        `YahooProvider: quote request failed with status ${response.status}.`
+        `YahooProvider: chart request failed with status ${response.status}.`
       );
     }
 
@@ -76,7 +106,27 @@ export class YahooProvider implements MarketDataProvider {
       );
     }
 
-    const meta = data.chart?.result?.[0]?.meta;
+    const result = data.chart?.result?.[0];
+
+    if (!result) {
+      throw new Error(
+        `YahooProvider: chart data is unavailable for ${normalizedSymbol}.`
+      );
+    }
+
+    return result;
+  }
+
+  async getQuote(symbol: string): Promise<StockQuote> {
+    const normalizedSymbol = this.normalizeSymbol(symbol);
+
+    const result = await this.fetchChartData(
+      normalizedSymbol,
+      "5d",
+      "1d"
+    );
+
+    const meta = result.meta;
 
     if (!meta || typeof meta.regularMarketPrice !== "number") {
       throw new Error(
@@ -94,7 +144,9 @@ export class YahooProvider implements MarketDataProvider {
     const change = meta.regularMarketPrice - previousClose;
 
     const changePercent =
-      previousClose !== 0 ? (change / previousClose) * 100 : 0;
+      previousClose !== 0
+        ? (change / previousClose) * 100
+        : 0;
 
     return {
       symbol: meta.symbol ?? normalizedSymbol,
@@ -104,6 +156,65 @@ export class YahooProvider implements MarketDataProvider {
       changePercent,
       currency: meta.currency ?? "",
       marketState: meta.marketState ?? "UNKNOWN",
+      metadata: this.createMetadata("fresh"),
+    };
+  }
+
+  async getChart(
+    symbol: string,
+    range = "6mo",
+    interval = "1d"
+  ): Promise<StockChart> {
+    const normalizedSymbol = this.normalizeSymbol(symbol);
+
+    const result = await this.fetchChartData(
+      normalizedSymbol,
+      range,
+      interval
+    );
+
+    const timestamps = result.timestamp ?? [];
+    const quote = result.indicators?.quote?.[0];
+
+    const candles = timestamps.flatMap((time, index) => {
+      const open = quote?.open?.[index];
+      const high = quote?.high?.[index];
+      const low = quote?.low?.[index];
+      const close = quote?.close?.[index];
+      const volume = quote?.volume?.[index];
+
+      if (
+        typeof open !== "number" ||
+        typeof high !== "number" ||
+        typeof low !== "number" ||
+        typeof close !== "number"
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          time,
+          open,
+          high,
+          low,
+          close,
+          volume: typeof volume === "number" ? volume : 0,
+        },
+      ];
+    });
+
+    if (candles.length === 0) {
+      throw new Error(
+        `YahooProvider: valid candle data is unavailable for ${normalizedSymbol}.`
+      );
+    }
+
+    return {
+      symbol: result.meta?.symbol ?? normalizedSymbol,
+      interval,
+      range,
+      candles,
       metadata: this.createMetadata("fresh"),
     };
   }
