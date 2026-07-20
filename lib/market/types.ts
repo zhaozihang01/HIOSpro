@@ -1,6 +1,6 @@
 /**
  * HIOS Core Data Types
- * Version: 1.0
+ * Version: 1.1
  */
 
 export type DataSource =
@@ -49,5 +49,22 @@ export interface StockFundamentals {
   dividendYield?: number;
   eps?: number;
   roe?: number;
+  metadata: DataMetadata;
+}
+
+export interface StockCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface StockChart {
+  symbol: string;
+  interval: string;
+  range: string;
+  candles: StockCandle[];
   metadata: DataMetadata;
 }
