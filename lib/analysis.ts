@@ -85,3 +85,38 @@ function generateScoreAnalysis(score: number): AIAnalysis {
     strategy: "建议暂时观望，等待趋势和技术指标改善。",
   };
 }
+export type MarketAnalysisInput = {
+  nikkei: number;
+  topix: number;
+  usdJpy: number;
+};
+
+export function generateMarketAnalysis(
+  market: MarketAnalysisInput
+): AIAnalysis {
+  const japanTrend =
+    market.nikkei >= 1 && market.topix >= 1
+      ? "日本股市整体表现强劲，主要指数同步上涨"
+      : market.nikkei <= -1 && market.topix <= -1
+        ? "日本股市整体承压，主要指数同步回落"
+        : "日本股市表现分化，市场方向仍需进一步确认";
+
+  const currencyText =
+    market.usdJpy >= 150
+      ? "日元处于偏弱区间，出口企业可能相对受益"
+      : market.usdJpy <= 140
+        ? "日元相对偏强，出口板块盈利预期可能受到压力"
+        : "美元兑日元处于中间区间，汇率影响暂时有限";
+
+  const riskText =
+    Math.abs(market.nikkei) >= 2 || Math.abs(market.topix) >= 2
+      ? "指数波动较大，短线市场风险上升"
+      : "指数波动相对有限，整体风险暂时可控";
+
+  return {
+    summary: `${japanTrend}；${currencyText}。`,
+    risk: `${riskText}。`,
+    strategy:
+      "建议结合指数趋势、汇率变化和个人风险承受能力制定交易计划。",
+  };
+}
