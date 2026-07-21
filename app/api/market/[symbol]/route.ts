@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getStockResearch } from "@/lib/market/research";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
+import {
+  generateStockResearch,
+} from "@/lib/research";
 
 interface RouteContext {
   params: Promise<{
@@ -14,7 +20,24 @@ export async function GET(
   try {
     const { symbol } = await params;
 
-    const searchParams = request.nextUrl.searchParams;
+    const normalizedSymbol =
+      decodeURIComponent(symbol)
+        .trim()
+        .toUpperCase();
+
+    if (!normalizedSymbol) {
+      return NextResponse.json(
+        {
+          error: "Stock symbol is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const searchParams =
+      request.nextUrl.searchParams;
 
     const range =
       searchParams.get("range") ?? "6mo";
@@ -22,15 +45,19 @@ export async function GET(
     const interval =
       searchParams.get("interval") ?? "1d";
 
-    const data = await getStockResearch(
-      symbol,
-      range,
-      interval
-    );
+    const data =
+      await generateStockResearch(
+        normalizedSymbol,
+        range,
+        interval
+      );
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Stock research API error:",
+      error
+    );
 
     return NextResponse.json(
       {
