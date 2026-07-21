@@ -4,64 +4,236 @@ export type MarketSnapshot = {
   usdJpy: number;
 };
 
-type MarketApiResponse = {
-  marketPrice: number;
-  previousClose: number;
+type MarketQuote = {
+  price: number;
+  change: number | null;
+  changePercent: number | null;
 };
 
-async function fetchMarketData(symbol: string): Promise<MarketApiResponse> {
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(
+  value: unknown
+): value is UnknownRecord {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
+function toFiniteNumber(
+  value: unknown
+): number | null {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    return value;
+  }
+
+  if (
+    typeof value === "string" &&
+    value.trim().length > 0
+  ) {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+async function fetchMarketQuote(
+  symbol: string
+): Promise<MarketQuote> {
   const response = await fetch(
-    `/api/market/${encodeURIComponent(symbol)}`,
+    `/api/market/${encodeURIComponent(
+      symbol
+    )}`,
     {
       cache: "no-store",
     }
   );
 
   if (!response.ok) {
-    throw new Error(`获取 ${symbol} 失败`);
+    let message = `获取 ${symbol} 失败`;
+
+    try {
+      const body: unknown =
+        await response.json();
+
+      if (
+        isRecord(body) &&
+        typeof body.error === "string"
+      ) {
+        message = body.error;
+      }
+    } catch {
+      // 保留默认错误信息
+    }
+
+    throw new Error(message);
   }
 
-  return response.json();
+  const body: unknown =
+    await response.json();
+
+  if (!isRecord(body)) {
+    throw new Error(
+      `${symbol} 返回格式不正确`
+    );
+  }
+
+  const quote = body.quote;
+
+  if (!isRecord(quote)) {
+    throw new Error(
+      `${symbol} 没有可用的 Quote 数据`
+    );
+  }
+
+  const price =
+    toFiniteNumber(quote.price);
+
+  if (price === null || price <= 0) {
+    throw new Error(
+      `${symbol} 没有有效价格`
+    );
+  }
+
+  return {
+    price,
+    change: toFiniteNumber(
+      quote.change
+    ),
+    changePercent: toFiniteNumber(
+      quote.changePercent
+    ),
+  };
 }
 
-function calculateChange(
-  marketPrice: number,
-  previousClose: number
-): number {
-  if (previousClose === 0) {
-    return 0;
+async function fetchFirstAvailableQuote(
+  symbols: string[]
+): Promise<MarketQuote> {
+  let latestError: unknown = null;
+
+  for (const symbol of symbols) {
+    try {
+      return await fetchMarketQuote(
+        symbol
+      );
+    } catch (error) {
+      latestError = error;
+
+      console.warn(
+        `${symbol} 市场数据读取失败，尝试备用代码。`,
+        error
+      );
+    }
   }
 
-  return ((marketPrice - previousClose) / previousClose) * 100;
+  throw (
+    latestError ??
+    new Error("没有可用的市场数据")
+  );
+}
+
+function getChangePercent(
+  quote: MarketQuote
+): number {
+  if (
+    quote.changePercent !== null
+  ) {
+    return quote.changePercent;
+  }
+
+  if (quote.change === null) {
+    return Number.NaN;
+  }
+
+  const previousClose =
+    quote.price - quote.change;
+
+  if (
+    !Number.isFinite(previousClose) ||
+    previousClose === 0
+  ) {
+    return Number.NaN;
+  }
+
+  return (
+    (quote.change / previousClose) *
+    100
+  );
 }
 
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
-  try {
-    const [nikkeiData, topixData, usdJpyData] = await Promise.all([
-      fetchMarketData("^N225"),
-      fetchMarketData("1306.T"),
-      fetchMarketData("JPY=X"),
-    ]);
-console.log("Nikkei data:", nikkeiData);
-console.log("TOPIX data:", topixData);
-    return {
-      nikkei: calculateChange(
-        nikkeiData.marketPrice,
-        nikkeiData.previousClose
-      ),
-      topix: calculateChange(
-        topixData.marketPrice,
-        topixData.previousClose
-      ),
-      usdJpy: usdJpyData.marketPrice,
-    };
-  } catch (error) {
-    console.error("市场数据读取失败：", error);
+  const [
+    nikkeiResult,
+    topixResult,
+    usdJpyResult,
+  ] = await Promise.allSettled([
+    fetchMarketQuote("^N225"),
 
-    return {
-      nikkei: 0,
-      topix: 0,
-      usdJpy: 0,
-    };
+    fetchFirstAvailableQuote([
+      "^TOPX",
+      "1306.T",
+    ]),
+
+    fetchMarketQuote("JPY=X"),
+  ]);
+
+  if (
+    nikkeiResult.status === "rejected"
+  ) {
+    console.error(
+      "Nikkei 225 数据读取失败：",
+      nikkeiResult.reason
+    );
   }
+
+  if (
+    topixResult.status === "rejected"
+  ) {
+    console.error(
+      "TOPIX 数据读取失败：",
+      topixResult.reason
+    );
+  }
+
+  if (
+    usdJpyResult.status === "rejected"
+  ) {
+    console.error(
+      "USDJPY 数据读取失败：",
+      usdJpyResult.reason
+    );
+  }
+
+  return {
+    nikkei:
+      nikkeiResult.status ===
+      "fulfilled"
+        ? getChangePercent(
+            nikkeiResult.value
+          )
+        : Number.NaN,
+
+    topix:
+      topixResult.status ===
+      "fulfilled"
+        ? getChangePercent(
+            topixResult.value
+          )
+        : Number.NaN,
+
+    usdJpy:
+      usdJpyResult.status ===
+      "fulfilled"
+        ? usdJpyResult.value.price
+        : Number.NaN,
+  };
 }
