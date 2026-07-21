@@ -1,11 +1,27 @@
 "use client";
-import { getHiosScore } from "@/lib/hiosScore";
+
 import { useEffect, useState } from "react";
 import StockChart from "@/components/StockChart";
+import { getHiosScore } from "@/lib/hiosScore";
 import {
   getStockData,
   type StockData,
 } from "@/lib/stockService";
+
+type ResearchScoreDisplay = {
+  total: number;
+  trend: number;
+  momentum: number;
+  volatility: number;
+  valuation: number;
+};
+
+type ResearchSignal =
+  | "strong_buy"
+  | "buy"
+  | "hold"
+  | "sell"
+  | "strong_sell";
 
 type Props = {
   name: string;
@@ -13,6 +29,9 @@ type Props = {
   market: string;
   decision: "BUY" | "WAIT" | "AVOID";
   summary: string;
+  stockData?: StockData;
+  researchScore?: ResearchScoreDisplay;
+  researchSignal?: ResearchSignal;
 };
 
 const decisionColor = {
@@ -21,31 +40,143 @@ const decisionColor = {
   AVOID: "#c94343",
 };
 
+function getSignalLabel(
+  signal: ResearchSignal
+): string {
+  switch (signal) {
+    case "strong_buy":
+      return "Strong Buy";
+    case "buy":
+      return "Buy";
+    case "hold":
+      return "Watch";
+    case "sell":
+    case "strong_sell":
+      return "Avoid";
+    default:
+      return "Watch";
+  }
+}
+
+function getScoreStars(score: number): number {
+  const stars = Math.round(score / 20);
+
+  return Math.max(1, Math.min(5, stars));
+}
+
 export default function StockCard({
   name,
   ticker,
   market,
   decision,
   summary,
+  stockData,
+  researchScore,
+  researchSignal,
 }: Props) {
-  const hios = getHiosScore(ticker);
-  const [stock, setStock] = useState<StockData | null>(null);
+  const fallbackHios = getHiosScore(ticker);
+
+  const [loadedStock, setLoadedStock] =
+    useState<StockData | null>(
+      stockData ?? null
+    );
+
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setStock(null);
+    if (stockData) {
+      setLoadedStock(stockData);
+      setError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    setLoadedStock(null);
     setError("");
 
     getStockData(ticker)
-      .then(setStock)
-      .catch((err) => {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "行情数据读取失败"
-        );
+      .then((data) => {
+        if (!cancelled) {
+          setLoadedStock(data);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "行情数据读取失败"
+          );
+        }
       });
-  }, [ticker]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker, stockData]);
+
+  const stock = stockData ?? loadedStock;
+
+  const displayScore =
+    researchScore?.total ??
+    fallbackHios.score;
+
+  const displayLabel =
+    researchScore && researchSignal
+      ? getSignalLabel(researchSignal)
+      : fallbackHios.label;
+
+  const displayStars =
+    researchScore
+      ? getScoreStars(displayScore)
+      : fallbackHios.stars;
+
+  const breakdownItems = researchScore
+    ? [
+        {
+          label: "Trend",
+          value: researchScore.trend,
+          maximum: 100,
+        },
+        {
+          label: "Momentum",
+          value: researchScore.momentum,
+          maximum: 100,
+        },
+        {
+          label: "Volatility",
+          value: researchScore.volatility,
+          maximum: 100,
+        },
+        {
+          label: "Valuation",
+          value: researchScore.valuation,
+          maximum: 100,
+        },
+      ]
+    : [
+        {
+          label: "Technical",
+          value: fallbackHios.breakdown.technical,
+          maximum: 30,
+        },
+        {
+          label: "Trend",
+          value: fallbackHios.breakdown.trend,
+          maximum: 20,
+        },
+        {
+          label: "Risk",
+          value: fallbackHios.breakdown.risk,
+          maximum: 20,
+        },
+        {
+          label: "AI",
+          value: fallbackHios.breakdown.ai,
+          maximum: 30,
+        },
+      ];
 
   if (error) {
     return (
@@ -78,7 +209,10 @@ export default function StockCard({
     );
   }
 
-  const change = stock.marketPrice - stock.previousClose;
+  const change =
+    stock.marketPrice -
+    stock.previousClose;
+
   const changeRate =
     stock.previousClose !== 0
       ? (change / stock.previousClose) * 100
@@ -107,58 +241,57 @@ export default function StockCard({
           <h2 style={{ margin: 0 }}>
             {name}
           </h2>
-<div
-  style={{
-    marginTop: 6,
-    fontSize: 14,
-    color: "#4caf50",
-    fontWeight: 700,
-  }}
->
-  {"★".repeat(hios.stars)}
-{"☆".repeat(5 - hios.stars)}
-{"  "}
-HIOS Score: {hios.score} / 100 ・ {hios.label}
-</div>
-        <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-    gap: 8,
-    marginTop: 12,
-  }}
->
-  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
-    Technical
-    <div style={{ color: "#ffffff", fontWeight: 700 }}>
-      {hios.breakdown.technical} / 30
-    </div>
-  </div>
 
-  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
-    Trend
-    <div style={{ color: "#ffffff", fontWeight: 700 }}>
-      {hios.breakdown.trend} / 20
-    </div>
-  </div>
-
-  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
-    Risk
-    <div style={{ color: "#ffffff", fontWeight: 700 }}>
-      {hios.breakdown.risk} / 20
-    </div>
-  </div>
-
-  <div style={{ fontSize: 12, color: "#a8bfd1" }}>
-    AI
-    <div style={{ color: "#ffffff", fontWeight: 700 }}>
-      {hios.breakdown.ai} / 30
-    </div>
-  </div>
-</div>  
           <div
             style={{
               marginTop: 6,
+              fontSize: 14,
+              color: "#4caf50",
+              fontWeight: 700,
+            }}
+          >
+            {"★".repeat(displayStars)}
+            {"☆".repeat(5 - displayStars)}
+            {"  "}
+            HIOS Score: {displayScore} / 100
+            {" ・ "}
+            {displayLabel}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(4, minmax(0, 1fr))",
+              gap: 12,
+              marginTop: 12,
+            }}
+          >
+            {breakdownItems.map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  fontSize: 12,
+                  color: "#a8bfd1",
+                }}
+              >
+                {item.label}
+
+                <div
+                  style={{
+                    color: "#ffffff",
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.value} / {item.maximum}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              marginTop: 10,
               color: "#a8bfd1",
             }}
           >
