@@ -40,7 +40,7 @@ export async function GET(
       request.nextUrl.searchParams;
 
     const range =
-      searchParams.get("range") ?? "6mo";
+      searchParams.get("range") ?? "1y";
 
     const interval =
       searchParams.get("interval") ?? "1d";
