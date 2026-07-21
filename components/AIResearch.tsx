@@ -158,18 +158,50 @@ function translateReason(
 
   if (
     message.includes(
-      "ma25 is above ma200"
+      "current price is above ma25"
     )
   ) {
-    return "MA25位于MA200上方，当前趋势仍高于长期平均水平";
+    return "当前股价位于MA25上方，短期价格位置偏强";
   }
 
   if (
     message.includes(
-      "ma25 is below ma200"
+      "current price is below ma25"
     )
   ) {
-    return "MA25位于MA200下方，当前趋势仍低于长期平均水平";
+    return "当前股价位于MA25下方，短期价格位置偏弱";
+  }
+
+  if (
+    message.includes(
+      "current price is above ma75"
+    )
+  ) {
+    return "当前股价位于MA75上方，中期价格结构保持积极";
+  }
+
+  if (
+    message.includes(
+      "current price is below ma75"
+    )
+  ) {
+    return "当前股价位于MA75下方，中期价格结构相对偏弱";
+  }
+
+  if (
+    message.includes(
+      "current price is above ma200"
+    )
+  ) {
+    return "当前股价位于MA200上方，长期价格结构保持积极";
+  }
+
+  if (
+    message.includes(
+      "current price is below ma200"
+    )
+  ) {
+    return "当前股价位于MA200下方，长期价格结构相对偏弱";
   }
 
   if (
@@ -186,6 +218,14 @@ function translateReason(
     )
   ) {
     return "MA200数据暂时不足，长期趋势无法完整判断";
+  }
+
+  if (
+    message.includes(
+      "current price data was not provided"
+    )
+  ) {
+    return "当前价格数据暂时不可用，无法判断股价与均线的位置关系";
   }
 
   if (
@@ -222,9 +262,6 @@ function translateReason(
 
   if (
     message.includes(
-      "healthy bullish momentum"
-    ) ||
-    message.includes(
       "healthy momentum range"
     )
   ) {
@@ -249,6 +286,14 @@ function translateReason(
     message.includes("oversold")
   ) {
     return "RSI进入超卖区域，当前动量仍然偏弱";
+  }
+
+  if (
+    message.includes(
+      "relatively weak momentum"
+    )
+  ) {
+    return "RSI显示当前市场动量相对偏弱";
   }
 
   if (
@@ -395,14 +440,14 @@ function generateResearchText(
     getReasonTexts(
       research.reasons,
       "positive",
-      3
+      4
     );
 
   const negativeReasons =
     getReasonTexts(
       research.reasons,
       "negative",
-      2
+      3
     );
 
   const neutralReasons =
