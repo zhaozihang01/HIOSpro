@@ -16,11 +16,17 @@ type ResearchData = Pick<
   | "signal"
   | "reasons"
   | "confidence"
+  | "signalAdjustment"
 >;
 
 type ConfidenceData = NonNullable<
   StockResearchResult["confidence"]
 >;
+
+type SignalAdjustmentData =
+  NonNullable<
+    StockResearchResult["signalAdjustment"]
+  >;
 
 type Props = {
   name: string;
@@ -139,10 +145,57 @@ function getConfidenceColor(
   }
 }
 
+function getSignalAdjustmentText(
+  adjustment:
+    | SignalAdjustmentData
+    | undefined
+): string | null {
+  if (
+    !adjustment ||
+    !adjustment.applied
+  ) {
+    return null;
+  }
+
+  const originalSignal =
+    getSignalLabel(
+      adjustment.originalSignal
+    );
+
+  const finalSignal =
+    getSignalLabel(
+      adjustment.finalSignal
+    );
+
+  switch (adjustment.reason) {
+    case "low_confidence":
+      return (
+        `原始模型信号为${originalSignal}，` +
+        `但整体数据可信度低于安全标准，` +
+        `最终信号已限制为${finalSignal}。`
+      );
+
+    case "insufficient_fundamentals":
+      return (
+        `原始模型信号为${originalSignal}，` +
+        `但基本面数据完整度不足，` +
+        `最终信号已限制为${finalSignal}。`
+      );
+
+    default:
+      return (
+        `原始模型信号为${originalSignal}，` +
+        `由于研究数据存在限制，` +
+        `最终信号已调整为${finalSignal}。`
+      );
+  }
+}
+
 function translateConfidenceWarning(
   warning: string
 ): string {
-  const message = warning.toLowerCase();
+  const message =
+    warning.toLowerCase();
 
   if (
     message.includes(
@@ -211,7 +264,9 @@ function translateConfidenceWarning(
     const indicators =
       separatorIndex >= 0
         ? warning
-            .slice(separatorIndex + 1)
+            .slice(
+              separatorIndex + 1
+            )
             .replace(/\.$/, "")
             .trim()
         : "";
@@ -235,7 +290,9 @@ function translateConfidenceWarning(
     )
   ) {
     const coverage =
-      warning.match(/\d+\s*\/\s*\d+/)?.[0];
+      warning.match(
+        /\d+\s*\/\s*\d+/
+      )?.[0];
 
     return coverage
       ? `基本面数据完整度为 ${coverage}`
@@ -435,11 +492,19 @@ function translateReason(
     return "RSI显示动量较强，但正在接近超买区域";
   }
 
-  if (message.includes("overbought")) {
+  if (
+    message.includes(
+      "overbought"
+    )
+  ) {
     return "RSI进入超买区域，短线存在回调风险";
   }
 
-  if (message.includes("oversold")) {
+  if (
+    message.includes(
+      "oversold"
+    )
+  ) {
     return "RSI进入超卖区域，当前动量仍然偏弱";
   }
 
@@ -532,7 +597,9 @@ function translateReason(
   }
 
   if (
-    message.includes("negative roe")
+    message.includes(
+      "negative roe"
+    )
   ) {
     return "ROE为负，公司的盈利能力需要进一步观察";
   }
@@ -611,13 +678,19 @@ function generateResearchText(
     );
 
   const trendLabel =
-    getTrendLabel(research.trend);
+    getTrendLabel(
+      research.trend
+    );
 
   const riskLabel =
-    getRiskLabel(research.risk);
+    getRiskLabel(
+      research.risk
+    );
 
   const signalLabel =
-    getSignalLabel(research.signal);
+    getSignalLabel(
+      research.signal
+    );
 
   const summary =
     `HIOS Research Engine综合评分为` +
@@ -626,12 +699,18 @@ function generateResearchText(
     `趋势分为${research.score.trend}分，` +
     `动量分为${research.score.momentum}分，` +
     `估值分为${research.score.valuation}分。` +
-    joinReasons(positiveReasons);
+    joinReasons(
+      positiveReasons
+    );
 
   const riskReason =
     negativeReasons.length > 0
-      ? joinReasons(negativeReasons)
-      : joinReasons(neutralReasons);
+      ? joinReasons(
+          negativeReasons
+        )
+      : joinReasons(
+          neutralReasons
+        );
 
   const risk =
     `当前风险等级为${riskLabel}，` +
@@ -679,6 +758,48 @@ function generateResearchText(
   };
 }
 
+function SignalAdjustmentNotice({
+  adjustment,
+}: {
+  adjustment:
+    SignalAdjustmentData;
+}) {
+  const text =
+    getSignalAdjustmentText(
+      adjustment
+    );
+
+  if (!text) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 20,
+        padding: 14,
+        borderRadius: 10,
+        background: "#fff8e8",
+        border:
+          "1px solid #ead49b",
+        color: "#735313",
+        lineHeight: 1.7,
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 800,
+          marginBottom: 6,
+        }}
+      >
+        信号调整说明
+      </div>
+
+      <div>{text}</div>
+    </div>
+  );
+}
+
 function ConfidenceSection({
   confidence,
 }: {
@@ -713,9 +834,14 @@ function ConfidenceSection({
         translateConfidenceWarning
       )
       .filter(
-        (warning, index, values) =>
-          values.indexOf(warning) ===
-          index
+        (
+          warning,
+          index,
+          values
+        ) =>
+          values.indexOf(
+            warning
+          ) === index
       );
 
   return (
@@ -772,7 +898,8 @@ function ConfidenceSection({
               fontWeight: 800,
             }}
           >
-            {confidence.score} / 100 ・{" "}
+            {confidence.score} / 100
+            {" ・ "}
             {getConfidenceLabel(
               confidence.level
             )}
@@ -794,14 +921,16 @@ function ConfidenceSection({
                 style={{
                   padding: 12,
                   borderRadius: 10,
-                  background: "#f5f8fb",
+                  background:
+                    "#f5f8fb",
                   border:
                     "1px solid #d6e1ea",
                 }}
               >
                 <div
                   style={{
-                    color: "#60758a",
+                    color:
+                      "#60758a",
                     fontSize: 12,
                   }}
                 >
@@ -811,7 +940,8 @@ function ConfidenceSection({
                 <div
                   style={{
                     marginTop: 4,
-                    color: "#0b2a4a",
+                    color:
+                      "#0b2a4a",
                     fontSize: 18,
                     fontWeight: 800,
                   }}
@@ -885,13 +1015,15 @@ export default function AIResearch({
         marginTop: 24,
         padding: 24,
         background: "#ffffff",
-        border: "1px solid #d6e1ea",
+        border:
+          "1px solid #d6e1ea",
         borderRadius: 16,
       }}
     >
       <h2
         style={{
-          margin: "0 0 16px 0",
+          margin:
+            "0 0 16px 0",
           color: "#0b2a4a",
         }}
       >
@@ -1030,6 +1162,16 @@ export default function AIResearch({
           {analysis.strategy}
         </div>
       </div>
+
+      {research
+        ?.signalAdjustment
+        ?.applied && (
+        <SignalAdjustmentNotice
+          adjustment={
+            research.signalAdjustment
+          }
+        />
+      )}
 
       {research?.confidence && (
         <ConfidenceSection
