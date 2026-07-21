@@ -75,8 +75,12 @@ function getDecisionFromSignal(
   return "WAIT";
 }
 
-function getScoreStars(score: number): number {
-  const stars = Math.round(score / 20);
+function getScoreStars(
+  score: number
+): number {
+  const stars = Math.round(
+    score / 20
+  );
 
   return Math.max(
     0,
@@ -94,10 +98,12 @@ export default function StockCard({
   researchScore,
   researchSignal,
 }: Props) {
-  const [loadedStock, setLoadedStock] =
-    useState<StockData | null>(
-      stockData ?? null
-    );
+  const [
+    loadedStock,
+    setLoadedStock,
+  ] = useState<StockData | null>(
+    stockData ?? null
+  );
 
   const [error, setError] =
     useState("");
@@ -120,15 +126,17 @@ export default function StockCard({
           setLoadedStock(data);
         }
       })
-      .catch((loadError: unknown) => {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "行情数据读取失败"
-          );
+      .catch(
+        (loadError: unknown) => {
+          if (!cancelled) {
+            setError(
+              loadError instanceof Error
+                ? loadError.message
+                : "行情数据读取失败"
+            );
+          }
         }
-      });
+      );
 
     return () => {
       cancelled = true;
@@ -147,12 +155,16 @@ export default function StockCard({
 
   const displayLabel =
     researchSignal
-      ? getSignalLabel(researchSignal)
+      ? getSignalLabel(
+          researchSignal
+        )
       : "Analyzing";
 
   const displayStars =
     displayScore !== null
-      ? getScoreStars(displayScore)
+      ? getScoreStars(
+          displayScore
+        )
       : 0;
 
   const displayDecision =
@@ -167,7 +179,8 @@ export default function StockCard({
       ? [
           {
             label: "Trend",
-            value: researchScore.trend,
+            value:
+              researchScore.trend,
           },
           {
             label: "Momentum",
@@ -386,6 +399,7 @@ export default function StockCard({
           ma5={stock.ma5}
           ma25={stock.ma25}
           ma75={stock.ma75}
+          ma200={stock.ma200}
         />
 
         <p
