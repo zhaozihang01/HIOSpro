@@ -23,8 +23,7 @@ function getLatestValue(
     return null;
   }
 
-  const latest =
-    values[values.length - 1];
+  const latest = values[values.length - 1];
 
   if (
     !latest ||
@@ -37,17 +36,26 @@ function getLatestValue(
   return latest.value;
 }
 
-function clampScore(
-  score: number
-): number {
+function clampScore(score: number): number {
   return Math.max(
     0,
     Math.min(100, Math.round(score))
   );
 }
 
+function isValidPrice(
+  value: number | null | undefined
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value > 0
+  );
+}
+
 export function evaluateTrend(
-  analysis: AnalysisResult
+  analysis: AnalysisResult,
+  currentPrice?: number | null
 ): TrendEvaluation {
   let score = 50;
 
@@ -82,15 +90,14 @@ export function evaluateTrend(
   );
 
   /*
-   * MA25 与 MA75：
-   * 判断中短期趋势方向。
+   * 中期均线结构
    */
   if (
     ma25 !== null &&
     ma75 !== null
   ) {
     if (ma25 > ma75) {
-      score += 15;
+      score += 10;
 
       reasons.push({
         category: "trend",
@@ -99,7 +106,7 @@ export function evaluateTrend(
         impact: "positive",
       });
     } else if (ma25 < ma75) {
-      score -= 15;
+      score -= 10;
 
       reasons.push({
         category: "trend",
@@ -125,8 +132,7 @@ export function evaluateTrend(
   }
 
   /*
-   * MA75 与 MA200：
-   * 判断中长期牛熊结构。
+   * 长期均线结构
    */
   if (
     ma75 !== null &&
@@ -168,44 +174,98 @@ export function evaluateTrend(
   }
 
   /*
-   * MA25 与 MA200：
-   * 判断中短期趋势是否与长期结构一致。
+   * 当前价格相对MA25
    */
   if (
-    ma25 !== null &&
-    ma200 !== null
+    isValidPrice(currentPrice) &&
+    ma25 !== null
   ) {
-    if (ma25 > ma200) {
-      score += 10;
+    if (currentPrice > ma25) {
+      score += 5;
 
       reasons.push({
         category: "trend",
         message:
-          "MA25 is above MA200, showing that the current trend remains above the long-term average.",
+          "The current price is above MA25, indicating positive short-term price positioning.",
         impact: "positive",
       });
-    } else if (ma25 < ma200) {
-      score -= 10;
+    } else if (currentPrice < ma25) {
+      score -= 5;
 
       reasons.push({
         category: "trend",
         message:
-          "MA25 is below MA200, showing that the current trend remains below the long-term average.",
+          "The current price is below MA25, indicating weak short-term price positioning.",
         impact: "negative",
       });
     }
   }
 
   /*
-   * MACD：
-   * 判断趋势动量方向。
+   * 当前价格相对MA75
+   */
+  if (
+    isValidPrice(currentPrice) &&
+    ma75 !== null
+  ) {
+    if (currentPrice > ma75) {
+      score += 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "The current price is above MA75, confirming a positive medium-term price structure.",
+        impact: "positive",
+      });
+    } else if (currentPrice < ma75) {
+      score -= 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "The current price is below MA75, indicating medium-term price weakness.",
+        impact: "negative",
+      });
+    }
+  }
+
+  /*
+   * 当前价格相对MA200
+   */
+  if (
+    isValidPrice(currentPrice) &&
+    ma200 !== null
+  ) {
+    if (currentPrice > ma200) {
+      score += 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "The current price is above MA200, indicating that the stock remains in a positive long-term structure.",
+        impact: "positive",
+      });
+    } else if (currentPrice < ma200) {
+      score -= 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "The current price is below MA200, indicating a weak long-term price structure.",
+        impact: "negative",
+      });
+    }
+  }
+
+  /*
+   * MACD动量
    */
   if (
     macd !== null &&
     signal !== null
   ) {
     if (macd > signal) {
-      score += 10;
+      score += 5;
 
       reasons.push({
         category: "momentum",
@@ -214,7 +274,7 @@ export function evaluateTrend(
         impact: "positive",
       });
     } else if (macd < signal) {
-      score -= 10;
+      score -= 5;
 
       reasons.push({
         category: "momentum",
@@ -227,7 +287,7 @@ export function evaluateTrend(
 
   if (histogram !== null) {
     if (histogram > 0) {
-      score += 5;
+      score += 3;
 
       reasons.push({
         category: "momentum",
@@ -236,7 +296,7 @@ export function evaluateTrend(
         impact: "positive",
       });
     } else if (histogram < 0) {
-      score -= 5;
+      score -= 3;
 
       reasons.push({
         category: "momentum",
@@ -248,15 +308,14 @@ export function evaluateTrend(
   }
 
   /*
-   * RSI：
-   * 判断当前动量是否健康或过热。
+   * RSI状态
    */
   if (rsi !== null) {
     if (
       rsi >= 45 &&
       rsi < 65
     ) {
-      score += 5;
+      score += 2;
 
       reasons.push({
         category: "momentum",
@@ -275,7 +334,7 @@ export function evaluateTrend(
         impact: "neutral",
       });
     } else if (rsi >= 75) {
-      score -= 5;
+      score -= 3;
 
       reasons.push({
         category: "momentum",
@@ -284,7 +343,7 @@ export function evaluateTrend(
         impact: "negative",
       });
     } else if (rsi < 30) {
-      score -= 5;
+      score -= 3;
 
       reasons.push({
         category: "momentum",
@@ -295,6 +354,15 @@ export function evaluateTrend(
     }
   }
 
+  if (!isValidPrice(currentPrice)) {
+    reasons.push({
+      category: "data",
+      message:
+        "Current price data was not provided to the trend evaluator.",
+      impact: "neutral",
+    });
+  }
+
   const normalizedScore =
     clampScore(score);
 
@@ -302,17 +370,11 @@ export function evaluateTrend(
 
   if (normalizedScore >= 80) {
     trend = "strong_bullish";
-  } else if (
-    normalizedScore >= 60
-  ) {
+  } else if (normalizedScore >= 60) {
     trend = "bullish";
-  } else if (
-    normalizedScore >= 40
-  ) {
+  } else if (normalizedScore >= 40) {
     trend = "neutral";
-  } else if (
-    normalizedScore >= 20
-  ) {
+  } else if (normalizedScore >= 20) {
     trend = "bearish";
   } else {
     trend = "strong_bearish";
