@@ -27,21 +27,30 @@ type IndicatorValue = {
   value: number;
 };
 
-function clampScore(value: number): number {
+function clampScore(
+  value: number
+): number {
   return Math.max(
     0,
-    Math.min(100, Math.round(value))
+    Math.min(
+      100,
+      Math.round(value)
+    )
   );
 }
 
 function getLatestValue(
   values: IndicatorValue[] | undefined
 ): number | null {
-  if (!values || values.length === 0) {
+  if (
+    !values ||
+    values.length === 0
+  ) {
     return null;
   }
 
-  const latest = values[values.length - 1];
+  const latest =
+    values[values.length - 1];
 
   if (
     !latest ||
@@ -82,7 +91,10 @@ function evaluateMomentum(
   if (rsi !== null) {
     availableIndicators += 1;
 
-    if (rsi >= 45 && rsi <= 65) {
+    if (
+      rsi >= 45 &&
+      rsi <= 65
+    ) {
       score += 15;
 
       reasons.push({
@@ -91,7 +103,10 @@ function evaluateMomentum(
           "RSI is in a healthy momentum range.",
         impact: "positive",
       });
-    } else if (rsi > 65 && rsi < 75) {
+    } else if (
+      rsi > 65 &&
+      rsi < 75
+    ) {
       score += 5;
 
       reasons.push({
@@ -130,7 +145,10 @@ function evaluateMomentum(
     }
   }
 
-  if (macd !== null && signal !== null) {
+  if (
+    macd !== null &&
+    signal !== null
+  ) {
     availableIndicators += 1;
 
     if (macd > signal) {
@@ -221,7 +239,8 @@ function evaluateValuation(
 
   let availableMetrics = 0;
 
-  const peRatio = fundamentals.peRatio;
+  const peRatio =
+    fundamentals.peRatio;
 
   if (
     typeof peRatio === "number" &&
@@ -269,7 +288,8 @@ function evaluateValuation(
     }
   }
 
-  const pbRatio = fundamentals.pbRatio;
+  const pbRatio =
+    fundamentals.pbRatio;
 
   if (
     typeof pbRatio === "number" &&
@@ -313,7 +333,9 @@ function evaluateValuation(
 
   if (
     typeof dividendYield === "number" &&
-    Number.isFinite(dividendYield) &&
+    Number.isFinite(
+      dividendYield
+    ) &&
     dividendYield >= 0
   ) {
     availableMetrics += 1;
@@ -327,7 +349,9 @@ function evaluateValuation(
           "The dividend yield provides meaningful shareholder income.",
         impact: "positive",
       });
-    } else if (dividendYield >= 1) {
+    } else if (
+      dividendYield >= 1
+    ) {
       score += 5;
 
       reasons.push({
@@ -435,28 +459,37 @@ function getSignal(
 
 export async function generateStockResearch(
   symbol: string,
-  range = "6mo",
+  range = "1y",
   interval = "1d"
 ): Promise<StockResearchResult> {
   const normalizedSymbol =
     symbol.trim().toUpperCase();
 
   if (!normalizedSymbol) {
-    throw new Error("Stock symbol is required.");
+    throw new Error(
+      "Stock symbol is required."
+    );
   }
 
-  const market = await getMarketResearch(
-    normalizedSymbol,
-    range,
-    interval
-  );
+  const market =
+    await getMarketResearch(
+      normalizedSymbol,
+      range,
+      interval
+    );
 
   const analysis = analyze(
     market.chart.candles
   );
 
+  const currentPrice =
+    market.quote?.price ?? null;
+
   const trendEvaluation =
-    evaluateTrend(analysis);
+    evaluateTrend(
+      analysis,
+      currentPrice
+    );
 
   const riskEvaluation =
     evaluateRisk(
@@ -473,10 +506,18 @@ export async function generateStockResearch(
     );
 
   const score: ResearchScore = {
-    trend: trendEvaluation.score,
-    momentum: momentumEvaluation.score,
-    volatility: riskEvaluation.score,
-    valuation: valuationEvaluation.score,
+    trend:
+      trendEvaluation.score,
+
+    momentum:
+      momentumEvaluation.score,
+
+    volatility:
+      riskEvaluation.score,
+
+    valuation:
+      valuationEvaluation.score,
+
     total: calculateTotalScore(
       trendEvaluation.score,
       momentumEvaluation.score,
@@ -493,34 +534,41 @@ export async function generateStockResearch(
   ];
 
   const marketWarnings: unknown[] =
-  Array.isArray(market.warnings)
-    ? market.warnings
-    : [];
+    Array.isArray(market.warnings)
+      ? market.warnings
+      : [];
 
-for (const warning of marketWarnings) {
-  if (
-    typeof warning === "string" &&
-    warning.trim().length > 0
+  for (
+    const warning of marketWarnings
   ) {
-    reasons.push({
-      category: "data",
-      message: warning.trim(),
-      impact: "neutral",
-    });
+    if (
+      typeof warning === "string" &&
+      warning.trim().length > 0
+    ) {
+      reasons.push({
+        category: "data",
+        message: warning.trim(),
+        impact: "neutral",
+      });
+    }
   }
-}
 
   return {
     symbol: market.symbol,
     quote: market.quote,
-    fundamentals: market.fundamentals,
+    fundamentals:
+      market.fundamentals,
     chart: market.chart,
     analysis,
     score,
-    trend: trendEvaluation.trend,
-    risk: riskEvaluation.risk,
-    signal: getSignal(score.total),
+    trend:
+      trendEvaluation.trend,
+    risk:
+      riskEvaluation.risk,
+    signal:
+      getSignal(score.total),
     reasons,
-    generatedAt: new Date().toISOString(),
+    generatedAt:
+      new Date().toISOString(),
   };
 }
