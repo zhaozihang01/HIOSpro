@@ -1,27 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import StockChart from "@/components/StockChart";
-import { getHiosScore } from "@/lib/hiosScore";
+
+import type {
+  ResearchScore,
+  ResearchSignal,
+} from "@/lib/research";
+
 import {
   getStockData,
   type StockData,
 } from "@/lib/stockService";
-
-type ResearchScoreDisplay = {
-  total: number;
-  trend: number;
-  momentum: number;
-  volatility: number;
-  valuation: number;
-};
-
-type ResearchSignal =
-  | "strong_buy"
-  | "buy"
-  | "hold"
-  | "sell"
-  | "strong_sell";
 
 type Props = {
   name: string;
@@ -30,7 +21,7 @@ type Props = {
   decision: "BUY" | "WAIT" | "AVOID";
   summary: string;
   stockData?: StockData;
-  researchScore?: ResearchScoreDisplay;
+  researchScore?: ResearchScore;
   researchSignal?: ResearchSignal;
 };
 
@@ -46,22 +37,51 @@ function getSignalLabel(
   switch (signal) {
     case "strong_buy":
       return "Strong Buy";
+
     case "buy":
       return "Buy";
+
     case "hold":
       return "Watch";
+
     case "sell":
+      return "Sell";
+
     case "strong_sell":
-      return "Avoid";
+      return "Strong Sell";
+
     default:
       return "Watch";
   }
 }
 
+function getDecisionFromSignal(
+  signal: ResearchSignal
+): "BUY" | "WAIT" | "AVOID" {
+  if (
+    signal === "strong_buy" ||
+    signal === "buy"
+  ) {
+    return "BUY";
+  }
+
+  if (
+    signal === "sell" ||
+    signal === "strong_sell"
+  ) {
+    return "AVOID";
+  }
+
+  return "WAIT";
+}
+
 function getScoreStars(score: number): number {
   const stars = Math.round(score / 20);
 
-  return Math.max(1, Math.min(5, stars));
+  return Math.max(
+    0,
+    Math.min(5, stars)
+  );
 }
 
 export default function StockCard({
@@ -74,14 +94,13 @@ export default function StockCard({
   researchScore,
   researchSignal,
 }: Props) {
-  const fallbackHios = getHiosScore(ticker);
-
   const [loadedStock, setLoadedStock] =
     useState<StockData | null>(
       stockData ?? null
     );
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     if (stockData) {
@@ -101,11 +120,11 @@ export default function StockCard({
           setLoadedStock(data);
         }
       })
-      .catch((err: unknown) => {
+      .catch((loadError: unknown) => {
         if (!cancelled) {
           setError(
-            err instanceof Error
-              ? err.message
+            loadError instanceof Error
+              ? loadError.message
               : "行情数据读取失败"
           );
         }
@@ -116,67 +135,57 @@ export default function StockCard({
     };
   }, [ticker, stockData]);
 
-  const stock = stockData ?? loadedStock;
+  const stock =
+    stockData ?? loadedStock;
+
+  const hasResearch =
+    researchScore !== undefined &&
+    researchSignal !== undefined;
 
   const displayScore =
-    researchScore?.total ??
-    fallbackHios.score;
+    researchScore?.total ?? null;
 
   const displayLabel =
-    researchScore && researchSignal
+    researchSignal
       ? getSignalLabel(researchSignal)
-      : fallbackHios.label;
+      : "Analyzing";
 
   const displayStars =
-    researchScore
+    displayScore !== null
       ? getScoreStars(displayScore)
-      : fallbackHios.stars;
+      : 0;
 
-  const breakdownItems = researchScore
-    ? [
-        {
-          label: "Trend",
-          value: researchScore.trend,
-          maximum: 100,
-        },
-        {
-          label: "Momentum",
-          value: researchScore.momentum,
-          maximum: 100,
-        },
-        {
-          label: "Volatility",
-          value: researchScore.volatility,
-          maximum: 100,
-        },
-        {
-          label: "Valuation",
-          value: researchScore.valuation,
-          maximum: 100,
-        },
-      ]
-    : [
-        {
-          label: "Technical",
-          value: fallbackHios.breakdown.technical,
-          maximum: 30,
-        },
-        {
-          label: "Trend",
-          value: fallbackHios.breakdown.trend,
-          maximum: 20,
-        },
-        {
-          label: "Risk",
-          value: fallbackHios.breakdown.risk,
-          maximum: 20,
-        },
-        {
-          label: "AI",
-          value: fallbackHios.breakdown.ai,
-          maximum: 30,
-        },
-      ];
+  const displayDecision =
+    researchSignal
+      ? getDecisionFromSignal(
+          researchSignal
+        )
+      : decision;
+
+  const breakdownItems =
+    researchScore
+      ? [
+          {
+            label: "Trend",
+            value: researchScore.trend,
+          },
+          {
+            label: "Momentum",
+            value:
+              researchScore.momentum,
+          },
+          {
+            label: "Volatility",
+            value:
+              researchScore.volatility,
+          },
+          {
+            label: "Valuation",
+            value:
+              researchScore.valuation,
+          },
+        ]
+      : [];
 
   if (error) {
     return (
@@ -185,7 +194,8 @@ export default function StockCard({
           background: "#ffffff",
           borderRadius: 16,
           padding: 24,
-          border: "1px solid #d6e1ea",
+          border:
+            "1px solid #d6e1ea",
           color: "#c94343",
         }}
       >
@@ -201,7 +211,8 @@ export default function StockCard({
           background: "#ffffff",
           borderRadius: 16,
           padding: 24,
-          border: "1px solid #d6e1ea",
+          border:
+            "1px solid #d6e1ea",
         }}
       >
         正在读取 {ticker} 的真实行情……
@@ -215,7 +226,10 @@ export default function StockCard({
 
   const changeRate =
     stock.previousClose !== 0
-      ? (change / stock.previousClose) * 100
+      ? (
+          change /
+          stock.previousClose
+        ) * 100
       : 0;
 
   return (
@@ -224,7 +238,8 @@ export default function StockCard({
         background: "#ffffff",
         borderRadius: 16,
         overflow: "hidden",
-        border: "1px solid #d6e1ea",
+        border:
+          "1px solid #d6e1ea",
       }}
     >
       <div
@@ -233,7 +248,8 @@ export default function StockCard({
           color: "#ffffff",
           padding: 18,
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent:
+            "space-between",
           gap: 16,
         }}
       >
@@ -246,48 +262,82 @@ export default function StockCard({
             style={{
               marginTop: 6,
               fontSize: 14,
-              color: "#4caf50",
+              color: hasResearch
+                ? "#4caf50"
+                : "#a8bfd1",
               fontWeight: 700,
             }}
           >
-            {"★".repeat(displayStars)}
-            {"☆".repeat(5 - displayStars)}
-            {"  "}
-            HIOS Score: {displayScore} / 100
-            {" ・ "}
-            {displayLabel}
+            {hasResearch ? (
+              <>
+                {"★".repeat(
+                  displayStars
+                )}
+                {"☆".repeat(
+                  5 - displayStars
+                )}
+                {"  "}
+                HIOS Score:{" "}
+                {displayScore} / 100
+                {" ・ "}
+                {displayLabel}
+              </>
+            ) : (
+              <>
+                ☆☆☆☆☆{"  "}
+                HIOS Score:
+                Research Engine
+                分析中……
+              </>
+            )}
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(4, minmax(0, 1fr))",
-              gap: 12,
-              marginTop: 12,
-            }}
-          >
-            {breakdownItems.map((item) => (
-              <div
-                key={item.label}
-                style={{
-                  fontSize: 12,
-                  color: "#a8bfd1",
-                }}
-              >
-                {item.label}
+          {breakdownItems.length >
+          0 ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(4, minmax(0, 1fr))",
+                gap: 12,
+                marginTop: 12,
+              }}
+            >
+              {breakdownItems.map(
+                (item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      fontSize: 12,
+                      color: "#a8bfd1",
+                    }}
+                  >
+                    {item.label}
 
-                <div
-                  style={{
-                    color: "#ffffff",
-                    fontWeight: 700,
-                  }}
-                >
-                  {item.value} / {item.maximum}
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div
+                      style={{
+                        color:
+                          "#ffffff",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {item.value} / 100
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 12,
+                color: "#a8bfd1",
+              }}
+            >
+              正在计算趋势、动量、波动与估值评分……
+            </div>
+          )}
 
           <div
             style={{
@@ -295,14 +345,21 @@ export default function StockCard({
               color: "#a8bfd1",
             }}
           >
-            {ticker} · {stock.exchange || market}
+            {ticker} ·{" "}
+            {stock.exchange || market}
           </div>
         </div>
 
-        <div style={{ textAlign: "right" }}>
+        <div
+          style={{
+            textAlign: "right",
+          }}
+        >
           <h2 style={{ margin: 0 }}>
             {stock.currency}{" "}
-            {stock.marketPrice.toFixed(2)}
+            {stock.marketPrice.toFixed(
+              2
+            )}
           </h2>
 
           <div
@@ -316,7 +373,9 @@ export default function StockCard({
           >
             {change >= 0 ? "+" : ""}
             {change.toFixed(2)}
-            （{changeRate.toFixed(2)}%）
+            （
+            {changeRate.toFixed(2)}
+            %）
           </div>
         </div>
       </div>
@@ -341,7 +400,10 @@ export default function StockCard({
         <div
           style={{
             marginTop: 18,
-            background: decisionColor[decision],
+            background:
+              decisionColor[
+                displayDecision
+              ],
             color: "#ffffff",
             textAlign: "center",
             padding: 12,
@@ -349,7 +411,9 @@ export default function StockCard({
             fontWeight: 700,
           }}
         >
-          {decision}
+          {hasResearch
+            ? displayDecision
+            : "ANALYZING"}
         </div>
       </div>
     </article>
