@@ -73,31 +73,13 @@ export function evaluateTrend(
     analysis.ma?.[200]?.values
   );
 
-  const macd = getLatestValue(
-    analysis.macd?.macd.values
-  );
-
-  const signal = getLatestValue(
-    analysis.macd?.signal.values
-  );
-
-  const histogram = getLatestValue(
-    analysis.macd?.histogram.values
-  );
-
-  const rsi = getLatestValue(
-    analysis.rsi?.values
-  );
-
   /*
-   * 中期均线结构
+   * MA25 与 MA75：
+   * 判断中期趋势方向。
    */
-  if (
-    ma25 !== null &&
-    ma75 !== null
-  ) {
+  if (ma25 !== null && ma75 !== null) {
     if (ma25 > ma75) {
-      score += 10;
+      score += 15;
 
       reasons.push({
         category: "trend",
@@ -106,7 +88,7 @@ export function evaluateTrend(
         impact: "positive",
       });
     } else if (ma25 < ma75) {
-      score -= 10;
+      score -= 15;
 
       reasons.push({
         category: "trend",
@@ -132,12 +114,10 @@ export function evaluateTrend(
   }
 
   /*
-   * 长期均线结构
+   * MA75 与 MA200：
+   * 判断长期趋势结构。
    */
-  if (
-    ma75 !== null &&
-    ma200 !== null
-  ) {
+  if (ma75 !== null && ma200 !== null) {
     if (ma75 > ma200) {
       score += 15;
 
@@ -174,7 +154,8 @@ export function evaluateTrend(
   }
 
   /*
-   * 当前价格相对MA25
+   * 当前价格与 MA25：
+   * 判断短期价格位置。
    */
   if (
     isValidPrice(currentPrice) &&
@@ -202,7 +183,8 @@ export function evaluateTrend(
   }
 
   /*
-   * 当前价格相对MA75
+   * 当前价格与 MA75：
+   * 判断中期价格位置。
    */
   if (
     isValidPrice(currentPrice) &&
@@ -230,7 +212,8 @@ export function evaluateTrend(
   }
 
   /*
-   * 当前价格相对MA200
+   * 当前价格与 MA200：
+   * 判断长期价格位置。
    */
   if (
     isValidPrice(currentPrice) &&
@@ -252,103 +235,6 @@ export function evaluateTrend(
         category: "trend",
         message:
           "The current price is below MA200, indicating a weak long-term price structure.",
-        impact: "negative",
-      });
-    }
-  }
-
-  /*
-   * MACD动量
-   */
-  if (
-    macd !== null &&
-    signal !== null
-  ) {
-    if (macd > signal) {
-      score += 5;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "MACD is above the signal line.",
-        impact: "positive",
-      });
-    } else if (macd < signal) {
-      score -= 5;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "MACD is below the signal line.",
-        impact: "negative",
-      });
-    }
-  }
-
-  if (histogram !== null) {
-    if (histogram > 0) {
-      score += 3;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "MACD histogram is positive.",
-        impact: "positive",
-      });
-    } else if (histogram < 0) {
-      score -= 3;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "MACD histogram is negative.",
-        impact: "negative",
-      });
-    }
-  }
-
-  /*
-   * RSI状态
-   */
-  if (rsi !== null) {
-    if (
-      rsi >= 45 &&
-      rsi < 65
-    ) {
-      score += 2;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "RSI is in a healthy momentum range.",
-        impact: "positive",
-      });
-    } else if (
-      rsi >= 65 &&
-      rsi < 75
-    ) {
-      reasons.push({
-        category: "momentum",
-        message:
-          "RSI indicates strong momentum but is approaching an overbought level.",
-        impact: "neutral",
-      });
-    } else if (rsi >= 75) {
-      score -= 3;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "RSI indicates an overbought condition.",
-        impact: "negative",
-      });
-    } else if (rsi < 30) {
-      score -= 3;
-
-      reasons.push({
-        category: "momentum",
-        message:
-          "RSI indicates weak momentum and an oversold condition.",
         impact: "negative",
       });
     }
