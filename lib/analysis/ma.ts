@@ -1,4 +1,4 @@
-import {
+import type {
   IndicatorSeries,
   PriceCandle,
 } from "./types";
@@ -7,23 +7,44 @@ export function calculateMA(
   candles: PriceCandle[],
   period: number
 ): IndicatorSeries {
-  if (period <= 0) {
-    throw new Error("Period must be greater than 0.");
+  if (
+    !Number.isInteger(period) ||
+    period <= 0
+  ) {
+    throw new Error(
+      "Period must be a positive integer."
+    );
   }
 
-  const values = [];
+  if (candles.length < period) {
+    return {
+      name: `MA${period}`,
+      values: [],
+    };
+  }
 
-  for (let i = period - 1; i < candles.length; i++) {
-    let sum = 0;
+  const values: IndicatorSeries["values"] = [];
 
-    for (let j = i - period + 1; j <= i; j++) {
-      sum += candles[j].close;
+  let rollingSum = 0;
+
+  for (
+    let index = 0;
+    index < candles.length;
+    index += 1
+  ) {
+    rollingSum += candles[index].close;
+
+    if (index >= period) {
+      rollingSum -=
+        candles[index - period].close;
     }
 
-    values.push({
-      time: candles[i].time,
-      value: sum / period,
-    });
+    if (index >= period - 1) {
+      values.push({
+        time: candles[index].time,
+        value: rollingSum / period,
+      });
+    }
   }
 
   return {
@@ -34,12 +55,32 @@ export function calculateMA(
 
 export function calculateMAs(
   candles: PriceCandle[],
-  periods: number[] = [5, 10, 20, 60, 120, 200]
+  periods: number[] = [
+    5,
+    10,
+    20,
+    25,
+    60,
+    75,
+    120,
+    200,
+  ]
 ): Record<number, IndicatorSeries> {
-  const result: Record<number, IndicatorSeries> = {};
+  const result: Record<
+    number,
+    IndicatorSeries
+  > = {};
 
-  for (const period of periods) {
-    result[period] = calculateMA(candles, period);
+  const uniquePeriods = Array.from(
+    new Set(periods)
+  ).sort(
+    (first, second) =>
+      first - second
+  );
+
+  for (const period of uniquePeriods) {
+    result[period] =
+      calculateMA(candles, period);
   }
 
   return result;
