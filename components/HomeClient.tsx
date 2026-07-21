@@ -28,7 +28,11 @@ function isValidStockItem(value: unknown): value is StockItem {
     typeof stock.ticker === "string" &&
     stock.ticker.trim().length > 0 &&
     typeof stock.market === "string" &&
-    typeof stock.decision === "string" &&
+    (
+      stock.decision === "BUY" ||
+      stock.decision === "WAIT" ||
+      stock.decision === "AVOID"
+    ) &&
     typeof stock.summary === "string"
   );
 }
@@ -39,7 +43,7 @@ function normalizeStockItem(stock: StockItem): StockItem {
     name: stock.name.trim(),
     ticker: stock.ticker.trim().toUpperCase(),
     market: stock.market.trim(),
-    decision: stock.decision.trim(),
+    decision: stock.decision,
     summary: stock.summary.trim(),
   };
 }
