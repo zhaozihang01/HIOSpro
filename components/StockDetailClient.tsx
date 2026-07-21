@@ -156,7 +156,8 @@ async function getResearchData(
   );
 
   if (!response.ok) {
-    let message = "Research Engine 数据读取失败";
+    let message =
+      "Research Engine 数据读取失败";
 
     try {
       const body: unknown =
@@ -171,7 +172,7 @@ async function getResearchData(
         message = body.error;
       }
     } catch {
-      // 使用默认错误信息
+      // 保留默认错误信息
     }
 
     throw new Error(message);
@@ -266,8 +267,8 @@ export default function StockDetailClient({
           color: "#52697d",
         }}
       >
-        正在读取 {ticker} 的行情与 Research Engine
-        分析……
+        正在读取 {ticker} 的行情与 Research
+        Engine 分析……
       </section>
     );
   }
@@ -359,6 +360,7 @@ export default function StockDetailClient({
         score={research.score.total}
         label={displayLabel}
         breakdown={aiBreakdown}
+        research={research}
       />
 
       <MarketStats
