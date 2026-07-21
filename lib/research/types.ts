@@ -31,6 +31,10 @@ export type ResearchConfidenceLevel =
   | "medium"
   | "low";
 
+export type SignalAdjustmentReason =
+  | "low_confidence"
+  | "insufficient_fundamentals";
+
 export interface ResearchScore {
   total: number;
   trend: number;
@@ -51,6 +55,14 @@ export interface ResearchConfidence {
   level: ResearchConfidenceLevel;
   breakdown: ResearchConfidenceBreakdown;
   warnings: string[];
+}
+
+export interface ResearchSignalAdjustment {
+  applied: boolean;
+  originalSignal: ResearchSignal;
+  finalSignal: ResearchSignal;
+  reason: SignalAdjustmentReason | null;
+  message: string | null;
 }
 
 export interface ResearchReason {
@@ -92,12 +104,13 @@ export interface StockResearchResult {
 
   reasons: ResearchReason[];
 
-  /**
-   * 当前暂时设为可选字段。
-   * service.ts 接入可信度计算后，
-   * 再改为必填字段。
-   */
   confidence?: ResearchConfidence;
+
+  /**
+   * 记录最终信号是否受到数据可信度保护。
+   * 下一步由 service.ts 正式生成。
+   */
+  signalAdjustment?: ResearchSignalAdjustment;
 
   generatedAt: string;
 }
