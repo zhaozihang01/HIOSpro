@@ -50,6 +50,11 @@ type ResearchText = {
   strategy: string;
 };
 
+type ConfidenceWarningItem = {
+  key: string;
+  text: string;
+};
+
 function getTrendLabel(
   trend: ResearchTrend
 ): string {
@@ -191,9 +196,9 @@ function getSignalAdjustmentText(
   }
 }
 
-function translateConfidenceWarning(
+function getConfidenceWarningItem(
   warning: string
-): string {
+): ConfidenceWarningItem {
   const message =
     warning.toLowerCase();
 
@@ -202,7 +207,10 @@ function translateConfidenceWarning(
       "current quote data is unavailable"
     )
   ) {
-    return "当前行情数据不可用";
+    return {
+      key: "quote-unavailable",
+      text: "当前行情数据不可用",
+    };
   }
 
   if (
@@ -210,7 +218,10 @@ function translateConfidenceWarning(
       "current market price is unavailable"
     )
   ) {
-    return "当前市场价格不可用";
+    return {
+      key: "price-unavailable",
+      text: "当前市场价格不可用",
+    };
   }
 
   if (
@@ -218,7 +229,10 @@ function translateConfidenceWarning(
       "quote currency information is unavailable"
     )
   ) {
-    return "行情货币信息不可用";
+    return {
+      key: "currency-unavailable",
+      text: "行情货币信息不可用",
+    };
   }
 
   if (
@@ -226,7 +240,10 @@ function translateConfidenceWarning(
       "quote update time is unavailable"
     )
   ) {
-    return "行情更新时间不可用";
+    return {
+      key: "quote-time-unavailable",
+      text: "行情更新时间不可用",
+    };
   }
 
   if (
@@ -234,7 +251,10 @@ function translateConfidenceWarning(
       "historical chart data is unavailable"
     )
   ) {
-    return "历史K线数据不可用";
+    return {
+      key: "chart-unavailable",
+      text: "历史K线数据不可用",
+    };
   }
 
   if (
@@ -242,7 +262,11 @@ function translateConfidenceWarning(
       "fewer than 200 valid candles"
     )
   ) {
-    return "有效K线少于200根，MA200的可靠性有限";
+    return {
+      key: "chart-less-than-200",
+      text:
+        "有效K线少于200根，MA200的可靠性有限",
+    };
   }
 
   if (
@@ -250,7 +274,11 @@ function translateConfidenceWarning(
       "incomplete ohlc data"
     )
   ) {
-    return "部分历史K线的开盘、最高、最低或收盘数据不完整";
+    return {
+      key: "chart-incomplete-ohlc",
+      text:
+        "部分历史K线的开盘、最高、最低或收盘数据不完整",
+    };
   }
 
   if (
@@ -271,17 +299,40 @@ function translateConfidenceWarning(
             .trim()
         : "";
 
-    return indicators
-      ? `缺少技术指标：${indicators}`
-      : "部分技术指标不可用";
+    return {
+      key: "technical-missing",
+      text: indicators
+        ? `缺少技术指标：${indicators}`
+        : "部分技术指标不可用",
+    };
   }
 
   if (
     message.includes(
       "fundamental data is unavailable"
+    ) ||
+    message.includes(
+      "fundamentals are unavailable"
+    ) ||
+    message.includes(
+      "fundamental information is unavailable"
+    ) ||
+    message.includes(
+      "no fundamental data"
+    ) ||
+    (
+      message.includes(
+        "fundamental"
+      ) &&
+      message.includes(
+        "unavailable"
+      )
     )
   ) {
-    return "基本面数据不可用";
+    return {
+      key: "fundamentals-unavailable",
+      text: "基本面数据不可用",
+    };
   }
 
   if (
@@ -294,9 +345,12 @@ function translateConfidenceWarning(
         /\d+\s*\/\s*\d+/
       )?.[0];
 
-    return coverage
-      ? `基本面数据完整度为 ${coverage}`
-      : "部分基本面指标缺失";
+    return {
+      key: "fundamentals-coverage",
+      text: coverage
+        ? `基本面数据完整度为 ${coverage}`
+        : "部分基本面指标缺失",
+    };
   }
 
   if (
@@ -304,18 +358,58 @@ function translateConfidenceWarning(
       "finnhub_api_key is not configured"
     )
   ) {
-    return "Finnhub数据源暂未配置";
+    return {
+      key: "finnhub-not-configured",
+      text: "Finnhub数据源暂未配置",
+    };
   }
 
+  return {
+    key: `other-${message.trim()}`,
+    text: warning,
+  };
+}
+
+function getUniqueConfidenceWarnings(
+  warnings: string[]
+): string[] {
+  const warningMap =
+    new Map<string, string>();
+
+  for (const warning of warnings) {
+    const item =
+      getConfidenceWarningItem(
+        warning
+      );
+
+    if (
+      !warningMap.has(item.key)
+    ) {
+      warningMap.set(
+        item.key,
+        item.text
+      );
+    }
+  }
+
+  /*
+   * 如果已经明确显示“基本面数据不可用”，
+   * 就不再同时显示基本面覆盖率提示，
+   * 避免表达重复。
+   */
   if (
-    message.includes(
-      "fundamentals are unavailable"
+    warningMap.has(
+      "fundamentals-unavailable"
     )
   ) {
-    return "当前股票缺少可用的基本面数据";
+    warningMap.delete(
+      "fundamentals-coverage"
+    );
   }
 
-  return warning;
+  return Array.from(
+    warningMap.values()
+  );
 }
 
 function translateReason(
@@ -829,20 +923,9 @@ function ConfidenceSection({
   ];
 
   const translatedWarnings =
-    confidence.warnings
-      .map(
-        translateConfidenceWarning
-      )
-      .filter(
-        (
-          warning,
-          index,
-          values
-        ) =>
-          values.indexOf(
-            warning
-          ) === index
-      );
+    getUniqueConfidenceWarnings(
+      confidence.warnings
+    );
 
   return (
     <>
