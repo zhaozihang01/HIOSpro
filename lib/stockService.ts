@@ -26,11 +26,14 @@ export type StockData = {
   ma5: (number | null)[];
   ma25: (number | null)[];
   ma75: (number | null)[];
+  ma200: (number | null)[];
 };
 
 type UnknownRecord = Record<string, unknown>;
 
-function isRecord(value: unknown): value is UnknownRecord {
+function isRecord(
+  value: unknown
+): value is UnknownRecord {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -55,7 +58,9 @@ function getPath(
   return current;
 }
 
-function toFiniteNumber(value: unknown): number | null {
+function toFiniteNumber(
+  value: unknown
+): number | null {
   if (
     typeof value === "number" &&
     Number.isFinite(value)
@@ -83,7 +88,8 @@ function getFirstNumber(
 ): number | null {
   for (const source of sources) {
     for (const key of keys) {
-      const value = toFiniteNumber(source[key]);
+      const value =
+        toFiniteNumber(source[key]);
 
       if (value !== null) {
         return value;
@@ -119,19 +125,28 @@ function normalizeTime(
   value: unknown,
   fallback: number
 ): number {
-  const numericValue = toFiniteNumber(value);
+  const numericValue =
+    toFiniteNumber(value);
 
   if (numericValue !== null) {
-    return numericValue > 1_000_000_000_000
-      ? Math.floor(numericValue / 1000)
+    return numericValue >
+      1_000_000_000_000
+      ? Math.floor(
+          numericValue / 1000
+        )
       : Math.floor(numericValue);
   }
 
   if (typeof value === "string") {
-    const parsedDate = Date.parse(value);
+    const parsedDate =
+      Date.parse(value);
 
-    if (Number.isFinite(parsedDate)) {
-      return Math.floor(parsedDate / 1000);
+    if (
+      Number.isFinite(parsedDate)
+    ) {
+      return Math.floor(
+        parsedDate / 1000
+      );
     }
   }
 
@@ -148,7 +163,12 @@ function parseCandle(
 
   const close = getFirstNumber(
     [value],
-    ["close", "adjClose", "adjustedClose", "price"]
+    [
+      "close",
+      "adjClose",
+      "adjustedClose",
+      "price",
+    ]
   );
 
   if (close === null) {
@@ -156,18 +176,30 @@ function parseCandle(
   }
 
   const open =
-    getFirstNumber([value], ["open"]) ?? close;
+    getFirstNumber(
+      [value],
+      ["open"]
+    ) ?? close;
 
   const high =
-    getFirstNumber([value], ["high"]) ??
+    getFirstNumber(
+      [value],
+      ["high"]
+    ) ??
     Math.max(open, close);
 
   const low =
-    getFirstNumber([value], ["low"]) ??
+    getFirstNumber(
+      [value],
+      ["low"]
+    ) ??
     Math.min(open, close);
 
   const volume =
-    getFirstNumber([value], ["volume"]) ?? 0;
+    getFirstNumber(
+      [value],
+      ["volume"]
+    ) ?? 0;
 
   return {
     time: normalizeTime(
@@ -203,10 +235,10 @@ function getArray(
 function parseParallelChart(
   source: UnknownRecord
 ): Candle[] {
-  const closes = getArray(source, [
-    "close",
-    "closes",
-  ]);
+  const closes = getArray(
+    source,
+    ["close", "closes"]
+  );
 
   if (!closes) {
     return [];
@@ -223,55 +255,92 @@ function parseParallelChart(
     ]) ?? [];
 
   const opens =
-    getArray(source, ["open", "opens"]) ?? [];
+    getArray(
+      source,
+      ["open", "opens"]
+    ) ?? [];
 
   const highs =
-    getArray(source, ["high", "highs"]) ?? [];
+    getArray(
+      source,
+      ["high", "highs"]
+    ) ?? [];
 
   const lows =
-    getArray(source, ["low", "lows"]) ?? [];
+    getArray(
+      source,
+      ["low", "lows"]
+    ) ?? [];
 
   const volumes =
-    getArray(source, ["volume", "volumes"]) ?? [];
+    getArray(
+      source,
+      ["volume", "volumes"]
+    ) ?? [];
 
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(
+    Date.now() / 1000
+  );
 
   return closes
-    .map((closeValue, index): Candle | null => {
-      const close = toFiniteNumber(closeValue);
+    .map(
+      (
+        closeValue,
+        index
+      ): Candle | null => {
+        const close =
+          toFiniteNumber(
+            closeValue
+          );
 
-      if (close === null) {
-        return null;
+        if (close === null) {
+          return null;
+        }
+
+        const open =
+          toFiniteNumber(
+            opens[index]
+          ) ?? close;
+
+        const high =
+          toFiniteNumber(
+            highs[index]
+          ) ??
+          Math.max(open, close);
+
+        const low =
+          toFiniteNumber(
+            lows[index]
+          ) ??
+          Math.min(open, close);
+
+        const volume =
+          toFiniteNumber(
+            volumes[index]
+          ) ?? 0;
+
+        return {
+          time: normalizeTime(
+            times[index],
+            now -
+              (
+                closes.length -
+                index
+              ) *
+                86400
+          ),
+          open,
+          high,
+          low,
+          close,
+          volume,
+        };
       }
-
-      const open =
-        toFiniteNumber(opens[index]) ?? close;
-
-      const high =
-        toFiniteNumber(highs[index]) ??
-        Math.max(open, close);
-
-      const low =
-        toFiniteNumber(lows[index]) ??
-        Math.min(open, close);
-
-      const volume =
-        toFiniteNumber(volumes[index]) ?? 0;
-
-      return {
-        time: normalizeTime(
-          times[index],
-          now - (closes.length - index) * 86400
-        ),
-        open,
-        high,
-        low,
-        close,
-        volume,
-      };
-    })
+    )
     .filter(
-      (candle): candle is Candle =>
+      (
+        candle
+      ): candle is Candle =>
         candle !== null
     );
 }
@@ -279,18 +348,31 @@ function parseParallelChart(
 function parseCandleCollection(
   value: unknown
 ): Candle[] {
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(
+    Date.now() / 1000
+  );
 
   if (Array.isArray(value)) {
     return value
-      .map((item, index) =>
-        parseCandle(
+      .map(
+        (
           item,
-          now - (value.length - index) * 86400
-        )
+          index
+        ) =>
+          parseCandle(
+            item,
+            now -
+              (
+                value.length -
+                index
+              ) *
+                86400
+          )
       )
       .filter(
-        (candle): candle is Candle =>
+        (
+          candle
+        ): candle is Candle =>
           candle !== null
       );
   }
@@ -299,19 +381,26 @@ function parseCandleCollection(
     return [];
   }
 
-  const nestedArray = getArray(value, [
-    "candles",
-    "data",
-    "items",
-    "prices",
-    "history",
-  ]);
+  const nestedArray = getArray(
+    value,
+    [
+      "candles",
+      "data",
+      "items",
+      "prices",
+      "history",
+    ]
+  );
 
   if (nestedArray) {
-    return parseCandleCollection(nestedArray);
+    return parseCandleCollection(
+      nestedArray
+    );
   }
 
-  return parseParallelChart(value);
+  return parseParallelChart(
+    value
+  );
 }
 
 function extractCandles(
@@ -321,23 +410,50 @@ function extractCandles(
     getPath(root, ["data"]),
     getPath(root, ["candles"]),
     getPath(root, ["chart"]),
-    getPath(root, ["chart", "candles"]),
-    getPath(root, ["chart", "data"]),
-    getPath(root, ["market", "chart"]),
-    getPath(root, ["market", "candles"]),
-    getPath(root, ["marketData", "chart"]),
-    getPath(root, ["marketData", "candles"]),
-    getPath(root, ["research", "market", "chart"]),
+    getPath(root, [
+      "chart",
+      "candles",
+    ]),
+    getPath(root, [
+      "chart",
+      "data",
+    ]),
+    getPath(root, [
+      "market",
+      "chart",
+    ]),
+    getPath(root, [
+      "market",
+      "candles",
+    ]),
+    getPath(root, [
+      "marketData",
+      "chart",
+    ]),
+    getPath(root, [
+      "marketData",
+      "candles",
+    ]),
+    getPath(root, [
+      "research",
+      "market",
+      "chart",
+    ]),
   ];
 
-  for (const candidate of candidates) {
+  for (
+    const candidate of candidates
+  ) {
     const candles =
-      parseCandleCollection(candidate);
+      parseCandleCollection(
+        candidate
+      );
 
     if (candles.length > 0) {
       return candles.sort(
         (first, second) =>
-          first.time - second.time
+          first.time -
+          second.time
       );
     }
   }
@@ -350,14 +466,29 @@ function collectQuoteSources(
 ): UnknownRecord[] {
   const candidates: unknown[] = [
     getPath(root, ["quote"]),
-    getPath(root, ["market", "quote"]),
-    getPath(root, ["marketData", "quote"]),
-    getPath(root, ["data", "quote"]),
-    getPath(root, ["research", "market", "quote"]),
+    getPath(root, [
+      "market",
+      "quote",
+    ]),
+    getPath(root, [
+      "marketData",
+      "quote",
+    ]),
+    getPath(root, [
+      "data",
+      "quote",
+    ]),
+    getPath(root, [
+      "research",
+      "market",
+      "quote",
+    ]),
     root,
   ];
 
-  return candidates.filter(isRecord);
+  return candidates.filter(
+    isRecord
+  );
 }
 
 export async function getStockData(
@@ -367,7 +498,9 @@ export async function getStockData(
     symbol.trim().toUpperCase();
 
   if (!normalizedSymbol) {
-    throw new Error("股票代码不能为空");
+    throw new Error(
+      "股票代码不能为空"
+    );
   }
 
   const response = await fetch(
@@ -380,13 +513,16 @@ export async function getStockData(
   );
 
   if (!response.ok) {
-    let message = "获取股票数据失败";
+    let message =
+      "获取股票数据失败";
 
     try {
-      const errorBody = await response.text();
+      const errorBody =
+        await response.text();
 
       if (errorBody.trim()) {
-        message = `${message}：${errorBody}`;
+        message =
+          `${message}：${errorBody}`;
       }
     } catch {
       // 保留默认错误信息
@@ -395,35 +531,42 @@ export async function getStockData(
     throw new Error(message);
   }
 
-  const rawJson: unknown = await response.json();
+  const rawJson: unknown =
+    await response.json();
 
   if (!isRecord(rawJson)) {
-    throw new Error("行情接口返回格式不正确");
+    throw new Error(
+      "行情接口返回格式不正确"
+    );
   }
 
   const quoteSources =
     collectQuoteSources(rawJson);
 
-  let candles = extractCandles(rawJson);
+  let candles =
+    extractCandles(rawJson);
 
-  let marketPrice = getFirstNumber(
-    quoteSources,
-    [
-      "marketPrice",
-      "price",
-      "regularMarketPrice",
-      "currentPrice",
-      "lastPrice",
-      "close",
-    ]
-  );
+  let marketPrice =
+    getFirstNumber(
+      quoteSources,
+      [
+        "marketPrice",
+        "price",
+        "regularMarketPrice",
+        "currentPrice",
+        "lastPrice",
+        "close",
+      ]
+    );
 
   if (
     marketPrice === null &&
     candles.length > 0
   ) {
     marketPrice =
-      candles[candles.length - 1].close;
+      candles[
+        candles.length - 1
+      ].close;
   }
 
   if (marketPrice === null) {
@@ -434,34 +577,56 @@ export async function getStockData(
 
   if (candles.length === 0) {
     const open =
-      getFirstNumber(quoteSources, [
-        "open",
-        "regularMarketOpen",
-      ]) ?? marketPrice;
+      getFirstNumber(
+        quoteSources,
+        [
+          "open",
+          "regularMarketOpen",
+        ]
+      ) ?? marketPrice;
 
     const high =
-      getFirstNumber(quoteSources, [
-        "high",
-        "regularMarketDayHigh",
-        "dayHigh",
-      ]) ?? Math.max(open, marketPrice);
+      getFirstNumber(
+        quoteSources,
+        [
+          "high",
+          "regularMarketDayHigh",
+          "dayHigh",
+        ]
+      ) ??
+      Math.max(
+        open,
+        marketPrice
+      );
 
     const low =
-      getFirstNumber(quoteSources, [
-        "low",
-        "regularMarketDayLow",
-        "dayLow",
-      ]) ?? Math.min(open, marketPrice);
+      getFirstNumber(
+        quoteSources,
+        [
+          "low",
+          "regularMarketDayLow",
+          "dayLow",
+        ]
+      ) ??
+      Math.min(
+        open,
+        marketPrice
+      );
 
     const volume =
-      getFirstNumber(quoteSources, [
-        "volume",
-        "regularMarketVolume",
-      ]) ?? 0;
+      getFirstNumber(
+        quoteSources,
+        [
+          "volume",
+          "regularMarketVolume",
+        ]
+      ) ?? 0;
 
     candles = [
       {
-        time: Math.floor(Date.now() / 1000),
+        time: Math.floor(
+          Date.now() / 1000
+        ),
         open,
         high,
         low,
@@ -472,25 +637,34 @@ export async function getStockData(
   }
 
   const latestCandle =
-    candles[candles.length - 1];
+    candles[
+      candles.length - 1
+    ];
 
   const previousCandle =
     candles.length > 1
-      ? candles[candles.length - 2]
+      ? candles[
+          candles.length - 2
+        ]
       : null;
 
   const previousClose =
-    getFirstNumber(quoteSources, [
-      "previousClose",
-      "regularMarketPreviousClose",
-      "prevClose",
-    ]) ??
+    getFirstNumber(
+      quoteSources,
+      [
+        "previousClose",
+        "regularMarketPreviousClose",
+        "prevClose",
+      ]
+    ) ??
     previousCandle?.close ??
     marketPrice;
 
-  const closes = candles.map(
-    (candle) => candle.close
-  );
+  const closes =
+    candles.map(
+      (candle) =>
+        candle.close
+    );
 
   return {
     symbol: getFirstString(
@@ -517,7 +691,9 @@ export async function getStockData(
     currency: getFirstString(
       quoteSources,
       ["currency"],
-      normalizedSymbol.endsWith(".T")
+      normalizedSymbol.endsWith(
+        ".T"
+      )
         ? "JPY"
         : "USD"
     ),
@@ -529,55 +705,94 @@ export async function getStockData(
         "fullExchangeName",
         "market",
       ],
-      normalizedSymbol.endsWith(".T")
+      normalizedSymbol.endsWith(
+        ".T"
+      )
         ? "TSE"
         : "US"
     ),
 
     open:
-      getFirstNumber(quoteSources, [
-        "open",
-        "regularMarketOpen",
-      ]) ?? latestCandle.open,
+      getFirstNumber(
+        quoteSources,
+        [
+          "open",
+          "regularMarketOpen",
+        ]
+      ) ??
+      latestCandle.open,
 
     high:
-      getFirstNumber(quoteSources, [
-        "high",
-        "regularMarketDayHigh",
-        "dayHigh",
-      ]) ?? latestCandle.high,
+      getFirstNumber(
+        quoteSources,
+        [
+          "high",
+          "regularMarketDayHigh",
+          "dayHigh",
+        ]
+      ) ??
+      latestCandle.high,
 
     low:
-      getFirstNumber(quoteSources, [
-        "low",
-        "regularMarketDayLow",
-        "dayLow",
-      ]) ?? latestCandle.low,
+      getFirstNumber(
+        quoteSources,
+        [
+          "low",
+          "regularMarketDayLow",
+          "dayLow",
+        ]
+      ) ??
+      latestCandle.low,
 
     volume:
-      getFirstNumber(quoteSources, [
-        "volume",
-        "regularMarketVolume",
-      ]) ?? latestCandle.volume,
+      getFirstNumber(
+        quoteSources,
+        [
+          "volume",
+          "regularMarketVolume",
+        ]
+      ) ??
+      latestCandle.volume,
 
-    pe: getFirstNumber(quoteSources, [
-      "pe",
-      "trailingPE",
-      "forwardPE",
-      "priceEarnings",
-    ]),
-
-    marketCap: getFirstNumber(
+    pe: getFirstNumber(
       quoteSources,
-      ["marketCap", "marketCapitalization"]
+      [
+        "pe",
+        "trailingPE",
+        "forwardPE",
+        "priceEarnings",
+      ]
     ),
+
+    marketCap:
+      getFirstNumber(
+        quoteSources,
+        [
+          "marketCap",
+          "marketCapitalization",
+        ]
+      ),
 
     candles,
 
-    ma5: movingAverage(closes, 5),
+    ma5: movingAverage(
+      closes,
+      5
+    ),
 
-    ma25: movingAverage(closes, 25),
+    ma25: movingAverage(
+      closes,
+      25
+    ),
 
-    ma75: movingAverage(closes, 75),
+    ma75: movingAverage(
+      closes,
+      75
+    ),
+
+    ma200: movingAverage(
+      closes,
+      200
+    ),
   };
 }
