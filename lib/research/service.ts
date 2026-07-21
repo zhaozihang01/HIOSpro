@@ -871,6 +871,7 @@ function evaluateConfidence(
 
   return {
     score,
+
     level:
       getConfidenceLevel(score),
 
@@ -926,6 +927,44 @@ function getSignal(
   }
 
   return "strong_sell";
+}
+
+function applyConfidenceProtection(
+  signal: ResearchSignal,
+  confidence: ResearchConfidence
+): ResearchSignal {
+  /*
+   * 行情或历史K线属于研究基础数据。
+   * 整体可信度低于60时，
+   * 禁止输出买入类信号。
+   */
+  if (
+    confidence.score < 60 &&
+    (
+      signal === "strong_buy" ||
+      signal === "buy"
+    )
+  ) {
+    return "hold";
+  }
+
+  /*
+   * 基本面完整度低于50时，
+   * 即使总评分达到Strong Buy，
+   * 最终信号最多只能为Buy。
+   *
+   * 总评分保持不变，
+   * 只限制信号强度。
+   */
+  if (
+    confidence.breakdown.fundamentals <
+      50 &&
+    signal === "strong_buy"
+  ) {
+    return "buy";
+  }
+
+  return signal;
 }
 
 export async function generateStockResearch(
@@ -1035,6 +1074,15 @@ export async function generateStockResearch(
       market.warnings
     );
 
+  const rawSignal =
+    getSignal(score.total);
+
+  const protectedSignal =
+    applyConfidenceProtection(
+      rawSignal,
+      confidence
+    );
+
   return {
     symbol: market.symbol,
 
@@ -1056,7 +1104,7 @@ export async function generateStockResearch(
       riskEvaluation.risk,
 
     signal:
-      getSignal(score.total),
+      protectedSignal,
 
     reasons,
 
