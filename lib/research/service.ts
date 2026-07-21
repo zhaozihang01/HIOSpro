@@ -1,16 +1,22 @@
 import type { AnalysisResult } from "@/lib/analysis/types";
 import { analyze } from "@/lib/analysis/service";
+
 import {
   getStockResearch as getMarketResearch,
 } from "@/lib/market/research";
+
 import type {
+  StockChart,
   StockFundamentals,
+  StockQuote,
 } from "@/lib/market/types";
 
 import { evaluateRisk } from "./risk";
 import { evaluateTrend } from "./trend";
 
 import type {
+  ResearchConfidence,
+  ResearchConfidenceLevel,
   ResearchReason,
   ResearchScore,
   ResearchSignal,
@@ -27,6 +33,21 @@ type IndicatorValue = {
   value: number;
 };
 
+type UnknownRecord = Record<
+  string,
+  unknown
+>;
+
+function isRecord(
+  value: unknown
+): value is UnknownRecord {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
 function clampScore(
   value: number
 ): number {
@@ -36,6 +57,24 @@ function clampScore(
       100,
       Math.round(value)
     )
+  );
+}
+
+function isFiniteNumber(
+  value: unknown
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  );
+}
+
+function isPositiveNumber(
+  value: unknown
+): value is number {
+  return (
+    isFiniteNumber(value) &&
+    value > 0
   );
 }
 
@@ -54,13 +93,18 @@ function getLatestValue(
 
   if (
     !latest ||
-    typeof latest.value !== "number" ||
-    !Number.isFinite(latest.value)
+    !isFiniteNumber(latest.value)
   ) {
     return null;
   }
 
   return latest.value;
+}
+
+function hasLatestValue(
+  values: IndicatorValue[] | undefined
+): boolean {
+  return getLatestValue(values) !== null;
 }
 
 function evaluateMomentum(
@@ -243,9 +287,7 @@ function evaluateValuation(
     fundamentals.peRatio;
 
   if (
-    typeof peRatio === "number" &&
-    Number.isFinite(peRatio) &&
-    peRatio > 0
+    isPositiveNumber(peRatio)
   ) {
     availableMetrics += 1;
 
@@ -292,9 +334,7 @@ function evaluateValuation(
     fundamentals.pbRatio;
 
   if (
-    typeof pbRatio === "number" &&
-    Number.isFinite(pbRatio) &&
-    pbRatio > 0
+    isPositiveNumber(pbRatio)
   ) {
     availableMetrics += 1;
 
@@ -332,10 +372,7 @@ function evaluateValuation(
     fundamentals.dividendYield;
 
   if (
-    typeof dividendYield === "number" &&
-    Number.isFinite(
-      dividendYield
-    ) &&
+    isFiniteNumber(dividendYield) &&
     dividendYield >= 0
   ) {
     availableMetrics += 1;
@@ -365,10 +402,7 @@ function evaluateValuation(
 
   const roe = fundamentals.roe;
 
-  if (
-    typeof roe === "number" &&
-    Number.isFinite(roe)
-  ) {
+  if (isFiniteNumber(roe)) {
     availableMetrics += 1;
 
     if (roe >= 15) {
@@ -418,6 +452,443 @@ function evaluateValuation(
   return {
     score: clampScore(score),
     reasons,
+  };
+}
+
+function evaluateQuoteConfidence(
+  quote: StockQuote | null
+): {
+  score: number;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+
+  if (!quote) {
+    return {
+      score: 0,
+      warnings: [
+        "Current quote data is unavailable.",
+      ],
+    };
+  }
+
+  let score = 0;
+
+  if (
+    isPositiveNumber(quote.price)
+  ) {
+    score += 70;
+  } else {
+    warnings.push(
+      "The current market price is unavailable."
+    );
+  }
+
+  if (
+    typeof quote.symbol === "string" &&
+    quote.symbol.trim().length > 0
+  ) {
+    score += 10;
+  }
+
+  if (
+    typeof quote.currency === "string" &&
+    quote.currency.trim().length > 0
+  ) {
+    score += 10;
+  } else {
+    warnings.push(
+      "Quote currency information is unavailable."
+    );
+  }
+
+  if (
+    typeof quote.metadata?.updatedAt ===
+      "string" &&
+    quote.metadata.updatedAt.trim().length >
+      0
+  ) {
+    score += 10;
+  } else {
+    warnings.push(
+      "Quote update time is unavailable."
+    );
+  }
+
+  return {
+    score: clampScore(score),
+    warnings,
+  };
+}
+
+function evaluateChartConfidence(
+  chart: StockChart
+): {
+  score: number;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+
+  const candles = Array.isArray(
+    chart.candles
+  )
+    ? chart.candles
+    : [];
+
+  if (candles.length === 0) {
+    return {
+      score: 0,
+      warnings: [
+        "Historical chart data is unavailable.",
+      ],
+    };
+  }
+
+  const validCandles =
+    candles.filter((candle) => {
+      return (
+        isPositiveNumber(
+          candle.open
+        ) &&
+        isPositiveNumber(
+          candle.high
+        ) &&
+        isPositiveNumber(
+          candle.low
+        ) &&
+        isPositiveNumber(
+          candle.close
+        ) &&
+        candle.high >= candle.low
+      );
+    });
+
+  let baseScore: number;
+
+  if (validCandles.length >= 250) {
+    baseScore = 100;
+  } else if (
+    validCandles.length >= 200
+  ) {
+    baseScore = 95;
+  } else if (
+    validCandles.length >= 120
+  ) {
+    baseScore = 80;
+  } else if (
+    validCandles.length >= 60
+  ) {
+    baseScore = 60;
+  } else if (
+    validCandles.length >= 20
+  ) {
+    baseScore = 40;
+  } else {
+    baseScore = 20;
+  }
+
+  const validRatio =
+    validCandles.length /
+    candles.length;
+
+  const score = clampScore(
+    baseScore * validRatio
+  );
+
+  if (validCandles.length < 200) {
+    warnings.push(
+      "Historical data contains fewer than 200 valid candles, so MA200 reliability is limited."
+    );
+  }
+
+  if (validRatio < 0.95) {
+    warnings.push(
+      "Some historical candles contain incomplete OHLC data."
+    );
+  }
+
+  return {
+    score,
+    warnings,
+  };
+}
+
+function evaluateTechnicalConfidence(
+  analysis: AnalysisResult
+): {
+  score: number;
+  warnings: string[];
+} {
+  const checks = [
+    {
+      name: "MA25",
+      available: hasLatestValue(
+        analysis.ma?.[25]?.values
+      ),
+    },
+    {
+      name: "MA75",
+      available: hasLatestValue(
+        analysis.ma?.[75]?.values
+      ),
+    },
+    {
+      name: "MA200",
+      available: hasLatestValue(
+        analysis.ma?.[200]?.values
+      ),
+    },
+    {
+      name: "RSI",
+      available: hasLatestValue(
+        analysis.rsi?.values
+      ),
+    },
+    {
+      name: "MACD",
+      available: hasLatestValue(
+        analysis.macd?.macd.values
+      ),
+    },
+    {
+      name: "MACD Signal",
+      available: hasLatestValue(
+        analysis.macd?.signal.values
+      ),
+    },
+    {
+      name: "MACD Histogram",
+      available: hasLatestValue(
+        analysis.macd?.histogram.values
+      ),
+    },
+    {
+      name: "ATR",
+      available: hasLatestValue(
+        analysis.atr?.values
+      ),
+    },
+  ];
+
+  const availableCount =
+    checks.filter(
+      (check) => check.available
+    ).length;
+
+  const missingIndicators =
+    checks
+      .filter(
+        (check) =>
+          !check.available
+      )
+      .map(
+        (check) => check.name
+      );
+
+  const warnings: string[] = [];
+
+  if (
+    missingIndicators.length > 0
+  ) {
+    warnings.push(
+      `Missing technical indicators: ${missingIndicators.join(
+        ", "
+      )}.`
+    );
+  }
+
+  return {
+    score: clampScore(
+      (
+        availableCount /
+        checks.length
+      ) * 100
+    ),
+    warnings,
+  };
+}
+
+function evaluateFundamentalConfidence(
+  fundamentals: StockFundamentals | null
+): {
+  score: number;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+
+  if (!fundamentals) {
+    return {
+      score: 0,
+      warnings: [
+        "Fundamental data is unavailable.",
+      ],
+    };
+  }
+
+  const metrics = [
+    isPositiveNumber(
+      fundamentals.marketCap
+    ),
+    isPositiveNumber(
+      fundamentals.peRatio
+    ),
+    isPositiveNumber(
+      fundamentals.pbRatio
+    ),
+    isFiniteNumber(
+      fundamentals.dividendYield
+    ) &&
+      fundamentals.dividendYield >= 0,
+    isFiniteNumber(
+      fundamentals.eps
+    ),
+    isFiniteNumber(
+      fundamentals.roe
+    ),
+  ];
+
+  const availableCount =
+    metrics.filter(Boolean).length;
+
+  if (
+    availableCount <
+    metrics.length
+  ) {
+    warnings.push(
+      `Fundamental data coverage is ${availableCount}/${metrics.length}.`
+    );
+  }
+
+  return {
+    score: clampScore(
+      (
+        availableCount /
+        metrics.length
+      ) * 100
+    ),
+    warnings,
+  };
+}
+
+function getMarketWarningMessage(
+  warning: unknown
+): string | null {
+  if (
+    typeof warning === "string" &&
+    warning.trim().length > 0
+  ) {
+    return warning.trim();
+  }
+
+  if (
+    isRecord(warning) &&
+    typeof warning.message ===
+      "string" &&
+    warning.message.trim().length > 0
+  ) {
+    return warning.message.trim();
+  }
+
+  return null;
+}
+
+function getConfidenceLevel(
+  score: number
+): ResearchConfidenceLevel {
+  if (score >= 85) {
+    return "high";
+  }
+
+  if (score >= 60) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function evaluateConfidence(
+  quote: StockQuote | null,
+  chart: StockChart,
+  analysis: AnalysisResult,
+  fundamentals: StockFundamentals | null,
+  marketWarnings: unknown
+): ResearchConfidence {
+  const quoteEvaluation =
+    evaluateQuoteConfidence(quote);
+
+  const chartEvaluation =
+    evaluateChartConfidence(chart);
+
+  const technicalEvaluation =
+    evaluateTechnicalConfidence(
+      analysis
+    );
+
+  const fundamentalEvaluation =
+    evaluateFundamentalConfidence(
+      fundamentals
+    );
+
+  let score = clampScore(
+    quoteEvaluation.score * 0.2 +
+      chartEvaluation.score * 0.3 +
+      technicalEvaluation.score *
+        0.3 +
+      fundamentalEvaluation.score *
+        0.2
+  );
+
+  if (
+    quoteEvaluation.score === 0 ||
+    chartEvaluation.score === 0
+  ) {
+    score = Math.min(score, 40);
+  }
+
+  const externalWarnings =
+    Array.isArray(marketWarnings)
+      ? marketWarnings
+          .map(
+            getMarketWarningMessage
+          )
+          .filter(
+            (
+              warning
+            ): warning is string =>
+              warning !== null
+          )
+      : [];
+
+  const warnings = Array.from(
+    new Set([
+      ...quoteEvaluation.warnings,
+      ...chartEvaluation.warnings,
+      ...technicalEvaluation.warnings,
+      ...fundamentalEvaluation.warnings,
+      ...externalWarnings,
+    ])
+  );
+
+  return {
+    score,
+    level:
+      getConfidenceLevel(score),
+
+    breakdown: {
+      quote:
+        quoteEvaluation.score,
+
+      chart:
+        chartEvaluation.score,
+
+      technical:
+        technicalEvaluation.score,
+
+      fundamentals:
+        fundamentalEvaluation.score,
+    },
+
+    warnings,
   };
 }
 
@@ -541,33 +1012,56 @@ export async function generateStockResearch(
   for (
     const warning of marketWarnings
   ) {
-    if (
-      typeof warning === "string" &&
-      warning.trim().length > 0
-    ) {
+    const message =
+      getMarketWarningMessage(
+        warning
+      );
+
+    if (message) {
       reasons.push({
         category: "data",
-        message: warning.trim(),
+        message,
         impact: "neutral",
       });
     }
   }
 
+  const confidence =
+    evaluateConfidence(
+      market.quote,
+      market.chart,
+      analysis,
+      market.fundamentals,
+      market.warnings
+    );
+
   return {
     symbol: market.symbol,
+
     quote: market.quote,
+
     fundamentals:
       market.fundamentals,
+
     chart: market.chart,
+
     analysis,
+
     score,
+
     trend:
       trendEvaluation.trend,
+
     risk:
       riskEvaluation.risk,
+
     signal:
       getSignal(score.total),
+
     reasons,
+
+    confidence,
+
     generatedAt:
       new Date().toISOString(),
   };
