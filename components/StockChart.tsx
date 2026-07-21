@@ -27,15 +27,43 @@ type Props = {
   ma5: (number | null)[];
   ma25: (number | null)[];
   ma75: (number | null)[];
+  ma200?: (number | null)[];
 };
+
+function createLineData(
+  candles: Candle[],
+  values: (number | null)[] | undefined
+): LineData<UTCTimestamp>[] {
+  if (!values || values.length === 0) {
+    return [];
+  }
+
+  return candles
+    .map((candle, index) => ({
+      time: candle.time as UTCTimestamp,
+      value: values[index] ?? null,
+    }))
+    .filter(
+      (
+        item
+      ): item is {
+        time: UTCTimestamp;
+        value: number;
+      } =>
+        typeof item.value === "number" &&
+        Number.isFinite(item.value)
+    );
+}
 
 export default function StockChart({
   candles,
   ma5,
   ma25,
   ma75,
+  ma200,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef =
+    useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -47,6 +75,7 @@ export default function StockChart({
     const chart = createChart(container, {
       width: container.clientWidth,
       height: 420,
+
       layout: {
         background: {
           type: ColorType.Solid,
@@ -54,6 +83,7 @@ export default function StockChart({
         },
         textColor: "#52697d",
       },
+
       grid: {
         vertLines: {
           color: "#e9eff4",
@@ -62,15 +92,18 @@ export default function StockChart({
           color: "#e9eff4",
         },
       },
+
       rightPriceScale: {
         borderColor: "#d6e1ea",
       },
+
       timeScale: {
         borderColor: "#d6e1ea",
         timeVisible: false,
         rightOffset: 3,
         barSpacing: 8,
       },
+
       crosshair: {
         vertLine: {
           color: "#8295a7",
@@ -83,46 +116,72 @@ export default function StockChart({
       },
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#d64b47",
-      downColor: "#3479b8",
-      borderUpColor: "#d64b47",
-      borderDownColor: "#3479b8",
-      wickUpColor: "#d64b47",
-      wickDownColor: "#3479b8",
-    });
+    const candleSeries = chart.addSeries(
+      CandlestickSeries,
+      {
+        upColor: "#d64b47",
+        downColor: "#3479b8",
+        borderUpColor: "#d64b47",
+        borderDownColor: "#3479b8",
+        wickUpColor: "#d64b47",
+        wickDownColor: "#3479b8",
+      }
+    );
 
-    const ma5Series = chart.addSeries(LineSeries, {
-      color: "#dc9700",
-      lineWidth: 2,
-      title: "MA5",
-    });
+    const ma5Series = chart.addSeries(
+      LineSeries,
+      {
+        color: "#dc9700",
+        lineWidth: 2,
+        title: "MA5",
+      }
+    );
 
-    const ma25Series = chart.addSeries(LineSeries, {
-      color: "#2f9258",
-      lineWidth: 2,
-      title: "MA25",
-    });
+    const ma25Series = chart.addSeries(
+      LineSeries,
+      {
+        color: "#2f9258",
+        lineWidth: 2,
+        title: "MA25",
+      }
+    );
 
-    const ma75Series = chart.addSeries(LineSeries, {
-      color: "#8e42c4",
-      lineWidth: 2,
-      title: "MA75",
-    });
+    const ma75Series = chart.addSeries(
+      LineSeries,
+      {
+        color: "#8e42c4",
+        lineWidth: 2,
+        title: "MA75",
+      }
+    );
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: {
-        type: "volume",
-      },
-      priceScaleId: "",
-    });
+    const ma200Series = chart.addSeries(
+      LineSeries,
+      {
+        color: "#52697d",
+        lineWidth: 2,
+        title: "MA200",
+      }
+    );
 
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.78,
-        bottom: 0,
-      },
-    });
+    const volumeSeries = chart.addSeries(
+      HistogramSeries,
+      {
+        priceFormat: {
+          type: "volume",
+        },
+        priceScaleId: "",
+      }
+    );
+
+    volumeSeries
+      .priceScale()
+      .applyOptions({
+        scaleMargins: {
+          top: 0.78,
+          bottom: 0,
+        },
+      });
 
     const candleData: CandlestickData<UTCTimestamp>[] =
       candles.map((item) => ({
@@ -133,47 +192,25 @@ export default function StockChart({
         close: item.close,
       }));
 
-    const ma5Data: LineData<UTCTimestamp>[] = candles
-      .map((item, index) => ({
-        time: item.time as UTCTimestamp,
-        value: ma5[index],
-      }))
-      .filter(
-        (
-          item
-        ): item is {
-          time: UTCTimestamp;
-          value: number;
-        } => item.value !== null
-      );
+    const ma5Data = createLineData(
+      candles,
+      ma5
+    );
 
-    const ma25Data: LineData<UTCTimestamp>[] = candles
-      .map((item, index) => ({
-        time: item.time as UTCTimestamp,
-        value: ma25[index],
-      }))
-      .filter(
-        (
-          item
-        ): item is {
-          time: UTCTimestamp;
-          value: number;
-        } => item.value !== null
-      );
+    const ma25Data = createLineData(
+      candles,
+      ma25
+    );
 
-    const ma75Data: LineData<UTCTimestamp>[] = candles
-      .map((item, index) => ({
-        time: item.time as UTCTimestamp,
-        value: ma75[index],
-      }))
-      .filter(
-        (
-          item
-        ): item is {
-          time: UTCTimestamp;
-          value: number;
-        } => item.value !== null
-      );
+    const ma75Data = createLineData(
+      candles,
+      ma75
+    );
+
+    const ma200Data = createLineData(
+      candles,
+      ma200
+    );
 
     const volumeData: HistogramData<UTCTimestamp>[] =
       candles.map((item) => ({
@@ -189,15 +226,21 @@ export default function StockChart({
     ma5Series.setData(ma5Data);
     ma25Series.setData(ma25Data);
     ma75Series.setData(ma75Data);
+
+    if (ma200Data.length > 0) {
+      ma200Series.setData(ma200Data);
+    }
+
     volumeSeries.setData(volumeData);
 
     chart.timeScale().fitContent();
 
-    const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({
-        width: container.clientWidth,
+    const resizeObserver =
+      new ResizeObserver(() => {
+        chart.applyOptions({
+          width: container.clientWidth,
+        });
       });
-    });
 
     resizeObserver.observe(container);
 
@@ -205,7 +248,13 @@ export default function StockChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [candles, ma5, ma25, ma75]);
+  }, [
+    candles,
+    ma5,
+    ma25,
+    ma75,
+    ma200,
+  ]);
 
   if (candles.length === 0) {
     return (
