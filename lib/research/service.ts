@@ -20,6 +20,7 @@ import type {
   ResearchReason,
   ResearchScore,
   ResearchSignal,
+  ResearchSignalAdjustment,
   StockResearchResult,
 } from "./types";
 
@@ -79,7 +80,9 @@ function isPositiveNumber(
 }
 
 function getLatestValue(
-  values: IndicatorValue[] | undefined
+  values:
+    | IndicatorValue[]
+    | undefined
 ): number | null {
   if (
     !values ||
@@ -102,9 +105,13 @@ function getLatestValue(
 }
 
 function hasLatestValue(
-  values: IndicatorValue[] | undefined
+  values:
+    | IndicatorValue[]
+    | undefined
 ): boolean {
-  return getLatestValue(values) !== null;
+  return (
+    getLatestValue(values) !== null
+  );
 }
 
 function evaluateMomentum(
@@ -112,7 +119,8 @@ function evaluateMomentum(
 ): ScoreEvaluation {
   let score = 50;
 
-  const reasons: ResearchReason[] = [];
+  const reasons: ResearchReason[] =
+    [];
 
   const rsi = getLatestValue(
     analysis.rsi?.values
@@ -261,11 +269,14 @@ function evaluateMomentum(
 }
 
 function evaluateValuation(
-  fundamentals: StockFundamentals | null
+  fundamentals:
+    | StockFundamentals
+    | null
 ): ScoreEvaluation {
   let score = 50;
 
-  const reasons: ResearchReason[] = [];
+  const reasons: ResearchReason[] =
+    [];
 
   if (!fundamentals) {
     reasons.push({
@@ -286,9 +297,7 @@ function evaluateValuation(
   const peRatio =
     fundamentals.peRatio;
 
-  if (
-    isPositiveNumber(peRatio)
-  ) {
+  if (isPositiveNumber(peRatio)) {
     availableMetrics += 1;
 
     if (peRatio <= 15) {
@@ -333,9 +342,7 @@ function evaluateValuation(
   const pbRatio =
     fundamentals.pbRatio;
 
-  if (
-    isPositiveNumber(pbRatio)
-  ) {
+  if (isPositiveNumber(pbRatio)) {
     availableMetrics += 1;
 
     if (pbRatio <= 1.5) {
@@ -485,15 +492,18 @@ function evaluateQuoteConfidence(
   }
 
   if (
-    typeof quote.symbol === "string" &&
+    typeof quote.symbol ===
+      "string" &&
     quote.symbol.trim().length > 0
   ) {
     score += 10;
   }
 
   if (
-    typeof quote.currency === "string" &&
-    quote.currency.trim().length > 0
+    typeof quote.currency ===
+      "string" &&
+    quote.currency.trim().length >
+      0
   ) {
     score += 10;
   } else {
@@ -503,10 +513,10 @@ function evaluateQuoteConfidence(
   }
 
   if (
-    typeof quote.metadata?.updatedAt ===
-      "string" &&
-    quote.metadata.updatedAt.trim().length >
-      0
+    typeof quote.metadata
+      ?.updatedAt === "string" &&
+    quote.metadata.updatedAt.trim()
+      .length > 0
   ) {
     score += 10;
   } else {
@@ -709,7 +719,9 @@ function evaluateTechnicalConfidence(
 }
 
 function evaluateFundamentalConfidence(
-  fundamentals: StockFundamentals | null
+  fundamentals:
+    | StockFundamentals
+    | null
 ): {
   score: number;
   warnings: string[];
@@ -738,7 +750,8 @@ function evaluateFundamentalConfidence(
     isFiniteNumber(
       fundamentals.dividendYield
     ) &&
-      fundamentals.dividendYield >= 0,
+      fundamentals.dividendYield >=
+        0,
     isFiniteNumber(
       fundamentals.eps
     ),
@@ -784,7 +797,8 @@ function getMarketWarningMessage(
     isRecord(warning) &&
     typeof warning.message ===
       "string" &&
-    warning.message.trim().length > 0
+    warning.message.trim().length >
+      0
   ) {
     return warning.message.trim();
   }
@@ -810,7 +824,9 @@ function evaluateConfidence(
   quote: StockQuote | null,
   chart: StockChart,
   analysis: AnalysisResult,
-  fundamentals: StockFundamentals | null,
+  fundamentals:
+    | StockFundamentals
+    | null,
   marketWarnings: unknown
 ): ResearchConfidence {
   const quoteEvaluation =
@@ -929,42 +945,52 @@ function getSignal(
   return "strong_sell";
 }
 
-function applyConfidenceProtection(
-  signal: ResearchSignal,
+function createSignalAdjustment(
+  originalSignal: ResearchSignal,
   confidence: ResearchConfidence
-): ResearchSignal {
-  /*
-   * 行情或历史K线属于研究基础数据。
-   * 整体可信度低于60时，
-   * 禁止输出买入类信号。
-   */
+): ResearchSignalAdjustment {
   if (
     confidence.score < 60 &&
     (
-      signal === "strong_buy" ||
-      signal === "buy"
+      originalSignal ===
+        "strong_buy" ||
+      originalSignal === "buy"
     )
   ) {
-    return "hold";
+    return {
+      applied: true,
+      originalSignal,
+      finalSignal: "hold",
+      reason: "low_confidence",
+      message:
+        "Overall data confidence is below 60, so the final signal was limited to Hold.",
+    };
   }
 
-  /*
-   * 基本面完整度低于50时，
-   * 即使总评分达到Strong Buy，
-   * 最终信号最多只能为Buy。
-   *
-   * 总评分保持不变，
-   * 只限制信号强度。
-   */
   if (
-    confidence.breakdown.fundamentals <
-      50 &&
-    signal === "strong_buy"
+    confidence.breakdown
+      .fundamentals < 50 &&
+    originalSignal ===
+      "strong_buy"
   ) {
-    return "buy";
+    return {
+      applied: true,
+      originalSignal,
+      finalSignal: "buy",
+      reason:
+        "insufficient_fundamentals",
+      message:
+        "Fundamental data coverage is below 50, so Strong Buy was limited to Buy.",
+    };
   }
 
-  return signal;
+  return {
+    applied: false,
+    originalSignal,
+    finalSignal: originalSignal,
+    reason: null,
+    message: null,
+  };
 }
 
 export async function generateStockResearch(
@@ -1036,12 +1062,13 @@ export async function generateStockResearch(
     ),
   };
 
-  const reasons: ResearchReason[] = [
-    ...trendEvaluation.reasons,
-    ...momentumEvaluation.reasons,
-    ...riskEvaluation.reasons,
-    ...valuationEvaluation.reasons,
-  ];
+  const reasons: ResearchReason[] =
+    [
+      ...trendEvaluation.reasons,
+      ...momentumEvaluation.reasons,
+      ...riskEvaluation.reasons,
+      ...valuationEvaluation.reasons,
+    ];
 
   const marketWarnings: unknown[] =
     Array.isArray(market.warnings)
@@ -1077,8 +1104,8 @@ export async function generateStockResearch(
   const rawSignal =
     getSignal(score.total);
 
-  const protectedSignal =
-    applyConfidenceProtection(
+  const signalAdjustment =
+    createSignalAdjustment(
       rawSignal,
       confidence
     );
@@ -1104,11 +1131,13 @@ export async function generateStockResearch(
       riskEvaluation.risk,
 
     signal:
-      protectedSignal,
+      signalAdjustment.finalSignal,
 
     reasons,
 
     confidence,
+
+    signalAdjustment,
 
     generatedAt:
       new Date().toISOString(),
