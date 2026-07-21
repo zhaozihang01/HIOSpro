@@ -109,15 +109,83 @@ function translateReason(
     reason.message.toLowerCase();
 
   if (
-    message.includes("ma20 is above ma60")
+    message.includes(
+      "ma25 is above ma75"
+    )
   ) {
-    return "MA20位于MA60上方，中期价格趋势保持向上";
+    return "MA25位于MA75上方，中期趋势保持向上";
   }
 
   if (
-    message.includes("ma20 is below ma60")
+    message.includes(
+      "ma25 is below ma75"
+    )
   ) {
-    return "MA20位于MA60下方，中期价格趋势偏弱";
+    return "MA25位于MA75下方，中期趋势相对偏弱";
+  }
+
+  if (
+    message.includes(
+      "ma25 and ma75 are close"
+    )
+  ) {
+    return "MA25与MA75较为接近，中期趋势方向暂不明确";
+  }
+
+  if (
+    message.includes(
+      "ma75 is above ma200"
+    )
+  ) {
+    return "MA75位于MA200上方，长期市场结构保持积极";
+  }
+
+  if (
+    message.includes(
+      "ma75 is below ma200"
+    )
+  ) {
+    return "MA75位于MA200下方，长期市场结构相对偏弱";
+  }
+
+  if (
+    message.includes(
+      "ma75 and ma200 are close"
+    )
+  ) {
+    return "MA75与MA200较为接近，长期趋势仍处于方向选择阶段";
+  }
+
+  if (
+    message.includes(
+      "ma25 is above ma200"
+    )
+  ) {
+    return "MA25位于MA200上方，当前趋势仍高于长期平均水平";
+  }
+
+  if (
+    message.includes(
+      "ma25 is below ma200"
+    )
+  ) {
+    return "MA25位于MA200下方，当前趋势仍低于长期平均水平";
+  }
+
+  if (
+    message.includes(
+      "ma25 or ma75 data is unavailable"
+    )
+  ) {
+    return "MA25或MA75数据暂时不足，中期趋势无法完整判断";
+  }
+
+  if (
+    message.includes(
+      "ma200 data is unavailable"
+    )
+  ) {
+    return "MA200数据暂时不足，长期趋势无法完整判断";
   }
 
   if (
@@ -139,9 +207,6 @@ function translateReason(
   if (
     message.includes(
       "macd histogram is positive"
-    ) ||
-    message.includes(
-      "macd histogram is positive"
     )
   ) {
     return "MACD柱状图为正，买方动能占优";
@@ -156,7 +221,9 @@ function translateReason(
   }
 
   if (
-    message.includes("healthy bullish momentum") ||
+    message.includes(
+      "healthy bullish momentum"
+    ) ||
     message.includes(
       "healthy momentum range"
     )
@@ -164,11 +231,23 @@ function translateReason(
     return "RSI处于相对健康的动量区间";
   }
 
-  if (message.includes("overbought")) {
+  if (
+    message.includes(
+      "approaching an overbought level"
+    )
+  ) {
+    return "RSI显示动量较强，但正在接近超买区域";
+  }
+
+  if (
+    message.includes("overbought")
+  ) {
     return "RSI进入超买区域，短线存在回调风险";
   }
 
-  if (message.includes("oversold")) {
+  if (
+    message.includes("oversold")
+  ) {
     return "RSI进入超卖区域，当前动量仍然偏弱";
   }
 
@@ -225,7 +304,7 @@ function translateReason(
       "moderately expensive"
     )
   ) {
-    return "当前估值略高，需要结合增长能力判断";
+    return "当前估值略高，需要结合增长能力进一步判断";
   }
 
   if (
@@ -246,10 +325,34 @@ function translateReason(
 
   if (
     message.includes(
+      "acceptable capital efficiency"
+    )
+  ) {
+    return "ROE显示公司的资本使用效率处于合理水平";
+  }
+
+  if (
+    message.includes(
+      "negative roe"
+    )
+  ) {
+    return "ROE为负，公司的盈利能力需要进一步观察";
+  }
+
+  if (
+    message.includes(
       "meaningful shareholder income"
     )
   ) {
     return "股息率能够提供一定的股东回报";
+  }
+
+  if (
+    message.includes(
+      "moderate dividend yield"
+    )
+  ) {
+    return "公司提供相对适中的股息回报";
   }
 
   if (
@@ -292,7 +395,7 @@ function generateResearchText(
     getReasonTexts(
       research.reasons,
       "positive",
-      2
+      3
     );
 
   const negativeReasons =
@@ -306,7 +409,7 @@ function generateResearchText(
     getReasonTexts(
       research.reasons,
       "neutral",
-      1
+      2
     );
 
   const trendLabel =
@@ -318,16 +421,13 @@ function generateResearchText(
   const signalLabel =
     getSignalLabel(research.signal);
 
-  const summaryParts = [
-    `HIOS Research Engine综合评分为${research.score.total}分`,
-    `趋势判断为${trendLabel}`,
-    `趋势分为${research.score.trend}分`,
-    `动量分为${research.score.momentum}分`,
-    `估值分为${research.score.valuation}分`,
-  ];
-
   const summary =
-    `${summaryParts.join("，")}。` +
+    `HIOS Research Engine综合评分为` +
+    `${research.score.total}分，` +
+    `趋势判断为${trendLabel}。` +
+    `趋势分为${research.score.trend}分，` +
+    `动量分为${research.score.momentum}分，` +
+    `估值分为${research.score.valuation}分。` +
     joinReasons(positiveReasons);
 
   const riskReason =
@@ -377,7 +477,7 @@ function generateResearchText(
     summary,
     risk,
     strategy:
-      `${strategy} 当前综合信号为${signalLabel}。`,
+      `${strategy}当前综合信号为${signalLabel}。`,
   };
 }
 
@@ -391,7 +491,9 @@ export default function AIResearch({
 }: Props) {
   const analysis: ResearchText =
     research
-      ? generateResearchText(research)
+      ? generateResearchText(
+          research
+        )
       : generateAnalysis(
           score,
           breakdown
