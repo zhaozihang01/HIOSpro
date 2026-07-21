@@ -492,22 +492,23 @@ export async function generateStockResearch(
     ...valuationEvaluation.reasons,
   ];
 
+  const marketWarnings: unknown[] =
+  Array.isArray(market.warnings)
+    ? market.warnings
+    : [];
+
+for (const warning of marketWarnings) {
   if (
-    Array.isArray(market.warnings)
+    typeof warning === "string" &&
+    warning.trim().length > 0
   ) {
-    for (const warning of market.warnings) {
-      if (
-        typeof warning === "string" &&
-        warning.trim().length > 0
-      ) {
-        reasons.push({
-          category: "data",
-          message: warning.trim(),
-          impact: "neutral",
-        });
-      }
-    }
+    reasons.push({
+      category: "data",
+      message: warning.trim(),
+      impact: "neutral",
+    });
   }
+}
 
   return {
     symbol: market.symbol,
