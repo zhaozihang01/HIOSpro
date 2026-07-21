@@ -7,10 +7,7 @@ import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
 import Watchlist from "@/components/Watchlist";
 
-import {
-  defaultWatchlist,
-  type StockItem,
-} from "@/data/watchlist";
+import { defaultWatchlist } from "@/data/watchlist";
 
 import type {
   ResearchRisk,
@@ -20,6 +17,12 @@ import type {
 } from "@/lib/research";
 
 const STORAGE_KEY = "hios-watchlist";
+
+type WatchlistStock = {
+  name: string;
+  ticker: string;
+  market: string;
+};
 
 type ResearchMap = Record<
   string,
@@ -45,9 +48,9 @@ function getErrorMessage(
     : "未知错误";
 }
 
-function isValidStockItem(
+function isValidWatchlistStock(
   value: unknown
-): value is StockItem {
+): value is WatchlistStock {
   if (
     typeof value !== "object" ||
     value === null
@@ -56,7 +59,7 @@ function isValidStockItem(
   }
 
   const stock =
-    value as Partial<StockItem>;
+    value as Partial<WatchlistStock>;
 
   return (
     typeof stock.name === "string" &&
@@ -64,27 +67,19 @@ function isValidStockItem(
     typeof stock.ticker === "string" &&
     stock.ticker.trim().length > 0 &&
     typeof stock.market === "string" &&
-    (
-      stock.decision === "BUY" ||
-      stock.decision === "WAIT" ||
-      stock.decision === "AVOID"
-    ) &&
-    typeof stock.summary === "string"
+    stock.market.trim().length > 0
   );
 }
 
-function normalizeStockItem(
-  stock: StockItem
-): StockItem {
+function normalizeWatchlistStock(
+  stock: WatchlistStock
+): WatchlistStock {
   return {
-    ...stock,
     name: stock.name.trim(),
     ticker: normalizeTicker(
       stock.ticker
     ),
     market: stock.market.trim(),
-    decision: stock.decision,
-    summary: stock.summary.trim(),
   };
 }
 
@@ -175,8 +170,8 @@ function createResearchSummary(
   research: StockResearchResult
 ): string {
   return (
-    `Research Engine 综合评分为 ` +
-    `${research.score.total} 分。` +
+    `Research Engine 综合评分为` +
+    `${research.score.total}分。` +
     `当前趋势为${getTrendText(
       research.trend
     )}，` +
@@ -229,8 +224,10 @@ async function getResearch(
 
 export default function HomeClient() {
   const [stocks, setStocks] =
-    useState<StockItem[]>(
-      defaultWatchlist
+    useState<WatchlistStock[]>(
+      defaultWatchlist.map(
+        normalizeWatchlistStock
+      )
     );
 
   const [
@@ -311,8 +308,8 @@ export default function HomeClient() {
       }
 
       const validStocks = parsed
-        .filter(isValidStockItem)
-        .map(normalizeStockItem);
+        .filter(isValidWatchlistStock)
+        .map(normalizeWatchlistStock);
 
       if (validStocks.length > 0) {
         setStocks(validStocks);
@@ -322,7 +319,9 @@ export default function HomeClient() {
         );
 
         setStocks(
-          defaultWatchlist
+          defaultWatchlist.map(
+            normalizeWatchlistStock
+          )
         );
       }
     } catch (error) {
@@ -335,7 +334,11 @@ export default function HomeClient() {
         STORAGE_KEY
       );
 
-      setStocks(defaultWatchlist);
+      setStocks(
+        defaultWatchlist.map(
+          normalizeWatchlistStock
+        )
+      );
     } finally {
       setStorageLoaded(true);
     }
@@ -482,11 +485,11 @@ export default function HomeClient() {
         researchMap[ticker];
 
       return {
-        ...stock,
-        ticker,
         name:
           research?.quote?.name ||
           stock.name,
+
+        ticker,
       };
     });
 
@@ -571,7 +574,7 @@ export default function HomeClient() {
               ? getDecision(
                   research.signal
                 )
-              : stock.decision;
+              : "WAIT";
 
           return (
             <StockCard
