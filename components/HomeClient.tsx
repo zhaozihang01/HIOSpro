@@ -1,18 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MorningReport from "@/components/MorningReport";
 import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
+import Watchlist from "@/components/Watchlist";
+
 import {
   StockItem,
   defaultWatchlist,
 } from "@/data/watchlist";
-import MorningReport from "@/components/MorningReport";
-import Watchlist from "@/components/Watchlist";
+
+import type {
+  StockResearchResult,
+} from "@/lib/research";
 
 const STORAGE_KEY = "hios-watchlist";
 
-function isValidStockItem(value: unknown): value is StockItem {
+type ResearchMap = Record<
+  string,
+  StockResearchResult
+>;
+
+function normalizeTicker(ticker: string): string {
+  return ticker.trim().toUpperCase();
+}
+
+function isValidStockItem(
+  value: unknown
+): value is StockItem {
   if (
     typeof value !== "object" ||
     value === null
@@ -37,52 +53,104 @@ function isValidStockItem(value: unknown): value is StockItem {
   );
 }
 
-function normalizeStockItem(stock: StockItem): StockItem {
+function normalizeStockItem(
+  stock: StockItem
+): StockItem {
   return {
     ...stock,
     name: stock.name.trim(),
-    ticker: stock.ticker.trim().toUpperCase(),
+    ticker: normalizeTicker(stock.ticker),
     market: stock.market.trim(),
     decision: stock.decision,
     summary: stock.summary.trim(),
   };
 }
 
+async function getResearch(
+  ticker: string
+): Promise<StockResearchResult> {
+  const response = await fetch(
+    `/api/market/${encodeURIComponent(ticker)}`,
+    {
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    let message = `${ticker} Research Engine 数据读取失败`;
+
+    try {
+      const body: unknown =
+        await response.json();
+
+      if (
+        typeof body === "object" &&
+        body !== null &&
+        "error" in body &&
+        typeof body.error === "string"
+      ) {
+        message = body.error;
+      }
+    } catch {
+      // 保留默认错误信息
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<StockResearchResult>;
+}
+
 export default function HomeClient() {
   const [stocks, setStocks] =
     useState<StockItem[]>(defaultWatchlist);
+
+  const [researchMap, setResearchMap] =
+    useState<ResearchMap>({});
 
   const [storageLoaded, setStorageLoaded] =
     useState(false);
 
   function handleRemove(ticker: string) {
     const normalizedTicker =
-      ticker.trim().toUpperCase();
+      normalizeTicker(ticker);
 
     setStocks((current) =>
       current.filter(
         (stock) =>
-          stock.ticker.trim().toUpperCase() !==
+          normalizeTicker(stock.ticker) !==
           normalizedTicker
       )
     );
+
+    setResearchMap((current) => {
+      const next = { ...current };
+
+      delete next[normalizedTicker];
+
+      return next;
+    });
   }
 
   useEffect(() => {
     try {
       const saved =
-        window.localStorage.getItem(STORAGE_KEY);
+        window.localStorage.getItem(
+          STORAGE_KEY
+        );
 
       if (!saved) {
-        setStorageLoaded(true);
         return;
       }
 
-      const parsed: unknown = JSON.parse(saved);
+      const parsed: unknown =
+        JSON.parse(saved);
 
       if (!Array.isArray(parsed)) {
-        window.localStorage.removeItem(STORAGE_KEY);
-        setStorageLoaded(true);
+        window.localStorage.removeItem(
+          STORAGE_KEY
+        );
+
         return;
       }
 
@@ -93,7 +161,10 @@ export default function HomeClient() {
       if (validStocks.length > 0) {
         setStocks(validStocks);
       } else {
-        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(
+          STORAGE_KEY
+        );
+
         setStocks(defaultWatchlist);
       }
     } catch (error) {
@@ -102,7 +173,10 @@ export default function HomeClient() {
         error
       );
 
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(
+        STORAGE_KEY
+      );
+
       setStocks(defaultWatchlist);
     } finally {
       setStorageLoaded(true);
@@ -127,58 +201,69 @@ export default function HomeClient() {
     }
   }, [stocks, storageLoaded]);
 
-  function handleSearch(symbol: string) {
-    const normalizedSymbol =
-      symbol.trim().toUpperCase();
+  useEffect(() => {
+    let cancelled = false;
 
-    if (!normalizedSymbol) {
-      return;
-    }
-
-    const exists = stocks.some(
-      (stock) =>
-        stock.ticker.trim().toUpperCase() ===
-        normalizedSymbol
+    const tickers = Array.from(
+      new Set(
+        stocks
+          .map((stock) =>
+            normalizeTicker(stock.ticker)
+          )
+          .filter(
+            (ticker) =>
+              ticker.length > 0
+          )
+      )
     );
 
-    if (exists) {
-      setStocks((current) => {
-        const target = current.find(
-          (stock) =>
-            stock.ticker.trim().toUpperCase() ===
-            normalizedSymbol
+    async function loadResearch() {
+      const results =
+        await Promise.allSettled(
+          tickers.map(async (ticker) => {
+            const research =
+              await getResearch(ticker);
+
+            return {
+              ticker,
+              research,
+            };
+          })
         );
 
-        const rest = current.filter(
-          (stock) =>
-            stock.ticker.trim().toUpperCase() !==
-            normalizedSymbol
-        );
+      if (cancelled) {
+        return;
+      }
 
-        return target
-          ? [target, ...rest]
-          : current;
+      setResearchMap((current) => {
+        const next: ResearchMap = {
+          ...current,
+        };
+
+        for (const result of results) {
+          if (
+            result.status === "fulfilled"
+          ) {
+            next[result.value.ticker] =
+              result.value.research;
+          } else {
+            console.error(
+              "首页 Research Engine 数据读取失败：",
+              result.reason
+            );
+          }
+        }
+
+        return next;
       });
-
-      return;
     }
 
-    const newStock: StockItem = {
-      name: normalizedSymbol,
-      ticker: normalizedSymbol,
-      market: normalizedSymbol.endsWith(".T")
-        ? "TSE"
-        : "US",
-      decision: "WAIT",
-      summary:
-        "这是通过搜索添加的股票。当前先显示真实行情，后续会自动生成中日双语AI分析和HIOS评分。",
-    };
+    void loadResearch();
 
-    setStocks((current) => [
-      newStock,
-      ...current,
-    ]);
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [stocks]);
 
   return (
     <>
@@ -188,7 +273,9 @@ export default function HomeClient() {
         items={stocks}
         onSelect={(ticker) => {
           window.location.href =
-            `/stocks/${encodeURIComponent(ticker)}`;
+            `/stocks/${encodeURIComponent(
+              normalizeTicker(ticker)
+            )}`;
         }}
         onRemove={handleRemove}
       />
@@ -196,7 +283,7 @@ export default function HomeClient() {
       <StockSearch
         onSearch={(ticker) => {
           const normalizedTicker =
-            ticker.trim().toUpperCase();
+            normalizeTicker(ticker);
 
           if (!normalizedTicker) {
             return;
@@ -215,16 +302,30 @@ export default function HomeClient() {
           gap: "24px",
         }}
       >
-        {stocks.map((stock) => (
-          <StockCard
-            key={stock.ticker}
-            name={stock.name}
-            ticker={stock.ticker}
-            market={stock.market}
-            decision={stock.decision}
-            summary={stock.summary}
-          />
-        ))}
+        {stocks.map((stock) => {
+          const normalizedTicker =
+            normalizeTicker(stock.ticker);
+
+          const research =
+            researchMap[normalizedTicker];
+
+          return (
+            <StockCard
+              key={normalizedTicker}
+              name={stock.name}
+              ticker={normalizedTicker}
+              market={stock.market}
+              decision={stock.decision}
+              summary={stock.summary}
+              researchScore={
+                research?.score
+              }
+              researchSignal={
+                research?.signal
+              }
+            />
+          );
+        })}
       </div>
     </>
   );
