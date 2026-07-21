@@ -1,5 +1,9 @@
 import type { AnalysisResult } from "@/lib/analysis/types";
-import type { ResearchReason, ResearchTrend } from "./types";
+
+import type {
+  ResearchReason,
+  ResearchTrend,
+} from "./types";
 
 export interface TrendEvaluation {
   trend: ResearchTrend;
@@ -7,19 +11,39 @@ export interface TrendEvaluation {
   reasons: ResearchReason[];
 }
 
+type IndicatorValue = {
+  time: number;
+  value: number;
+};
+
 function getLatestValue(
-  values:
-    | Array<{
-        time: number;
-        value: number;
-      }>
-    | undefined
+  values: IndicatorValue[] | undefined
 ): number | null {
   if (!values || values.length === 0) {
     return null;
   }
 
-  return values[values.length - 1].value;
+  const latest =
+    values[values.length - 1];
+
+  if (
+    !latest ||
+    typeof latest.value !== "number" ||
+    !Number.isFinite(latest.value)
+  ) {
+    return null;
+  }
+
+  return latest.value;
+}
+
+function clampScore(
+  score: number
+): number {
+  return Math.max(
+    0,
+    Math.min(100, Math.round(score))
+  );
 }
 
 export function evaluateTrend(
@@ -29,12 +53,16 @@ export function evaluateTrend(
 
   const reasons: ResearchReason[] = [];
 
-  const ma20 = getLatestValue(
-    analysis.ma?.[20]?.values
+  const ma25 = getLatestValue(
+    analysis.ma?.[25]?.values
   );
 
-  const ma60 = getLatestValue(
-    analysis.ma?.[60]?.values
+  const ma75 = getLatestValue(
+    analysis.ma?.[75]?.values
+  );
+
+  const ma200 = getLatestValue(
+    analysis.ma?.[200]?.values
   );
 
   const macd = getLatestValue(
@@ -53,41 +81,145 @@ export function evaluateTrend(
     analysis.rsi?.values
   );
 
-  if (ma20 !== null && ma60 !== null) {
-    if (ma20 > ma60) {
-      score += 20;
+  /*
+   * MA25 与 MA75：
+   * 判断中短期趋势方向。
+   */
+  if (
+    ma25 !== null &&
+    ma75 !== null
+  ) {
+    if (ma25 > ma75) {
+      score += 15;
 
       reasons.push({
         category: "trend",
-        message: "MA20 is above MA60, indicating an upward trend.",
+        message:
+          "MA25 is above MA75, indicating a positive medium-term trend.",
         impact: "positive",
       });
-    } else if (ma20 < ma60) {
-      score -= 20;
+    } else if (ma25 < ma75) {
+      score -= 15;
 
       reasons.push({
         category: "trend",
-        message: "MA20 is below MA60, indicating a downward trend.",
+        message:
+          "MA25 is below MA75, indicating a weak medium-term trend.",
+        impact: "negative",
+      });
+    } else {
+      reasons.push({
+        category: "trend",
+        message:
+          "MA25 and MA75 are close, indicating an unclear medium-term trend.",
+        impact: "neutral",
+      });
+    }
+  } else {
+    reasons.push({
+      category: "data",
+      message:
+        "MA25 or MA75 data is unavailable.",
+      impact: "neutral",
+    });
+  }
+
+  /*
+   * MA75 与 MA200：
+   * 判断中长期牛熊结构。
+   */
+  if (
+    ma75 !== null &&
+    ma200 !== null
+  ) {
+    if (ma75 > ma200) {
+      score += 15;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "MA75 is above MA200, indicating a positive long-term market structure.",
+        impact: "positive",
+      });
+    } else if (ma75 < ma200) {
+      score -= 15;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "MA75 is below MA200, indicating a weak long-term market structure.",
+        impact: "negative",
+      });
+    } else {
+      reasons.push({
+        category: "trend",
+        message:
+          "MA75 and MA200 are close, indicating an unclear long-term structure.",
+        impact: "neutral",
+      });
+    }
+  } else {
+    reasons.push({
+      category: "data",
+      message:
+        "MA200 data is unavailable, so the long-term trend cannot be fully evaluated.",
+      impact: "neutral",
+    });
+  }
+
+  /*
+   * MA25 与 MA200：
+   * 判断中短期趋势是否与长期结构一致。
+   */
+  if (
+    ma25 !== null &&
+    ma200 !== null
+  ) {
+    if (ma25 > ma200) {
+      score += 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "MA25 is above MA200, showing that the current trend remains above the long-term average.",
+        impact: "positive",
+      });
+    } else if (ma25 < ma200) {
+      score -= 10;
+
+      reasons.push({
+        category: "trend",
+        message:
+          "MA25 is below MA200, showing that the current trend remains below the long-term average.",
         impact: "negative",
       });
     }
   }
 
-  if (macd !== null && signal !== null) {
+  /*
+   * MACD：
+   * 判断趋势动量方向。
+   */
+  if (
+    macd !== null &&
+    signal !== null
+  ) {
     if (macd > signal) {
-      score += 15;
+      score += 10;
 
       reasons.push({
         category: "momentum",
-        message: "MACD is above the signal line.",
+        message:
+          "MACD is above the signal line.",
         impact: "positive",
       });
     } else if (macd < signal) {
-      score -= 15;
+      score -= 10;
 
       reasons.push({
         category: "momentum",
-        message: "MACD is below the signal line.",
+        message:
+          "MACD is below the signal line.",
         impact: "negative",
       });
     }
@@ -99,7 +231,8 @@ export function evaluateTrend(
 
       reasons.push({
         category: "momentum",
-        message: "MACD histogram is positive.",
+        message:
+          "MACD histogram is positive.",
         impact: "positive",
       });
     } else if (histogram < 0) {
@@ -107,54 +240,79 @@ export function evaluateTrend(
 
       reasons.push({
         category: "momentum",
-        message: "MACD histogram is negative.",
+        message:
+          "MACD histogram is negative.",
         impact: "negative",
       });
     }
   }
 
+  /*
+   * RSI：
+   * 判断当前动量是否健康或过热。
+   */
   if (rsi !== null) {
-    if (rsi >= 50 && rsi < 70) {
-      score += 10;
+    if (
+      rsi >= 45 &&
+      rsi < 65
+    ) {
+      score += 5;
 
       reasons.push({
         category: "momentum",
-        message: "RSI shows healthy bullish momentum.",
+        message:
+          "RSI is in a healthy momentum range.",
         impact: "positive",
       });
-    } else if (rsi >= 70) {
+    } else if (
+      rsi >= 65 &&
+      rsi < 75
+    ) {
+      reasons.push({
+        category: "momentum",
+        message:
+          "RSI indicates strong momentum but is approaching an overbought level.",
+        impact: "neutral",
+      });
+    } else if (rsi >= 75) {
       score -= 5;
 
       reasons.push({
         category: "momentum",
-        message: "RSI indicates an overbought condition.",
+        message:
+          "RSI indicates an overbought condition.",
         impact: "negative",
       });
     } else if (rsi < 30) {
-      score -= 10;
+      score -= 5;
 
       reasons.push({
         category: "momentum",
-        message: "RSI indicates weak momentum and an oversold condition.",
+        message:
+          "RSI indicates weak momentum and an oversold condition.",
         impact: "negative",
       });
     }
   }
 
-  const normalizedScore = Math.max(
-    0,
-    Math.min(100, score)
-  );
+  const normalizedScore =
+    clampScore(score);
 
   let trend: ResearchTrend;
 
   if (normalizedScore >= 80) {
     trend = "strong_bullish";
-  } else if (normalizedScore >= 60) {
+  } else if (
+    normalizedScore >= 60
+  ) {
     trend = "bullish";
-  } else if (normalizedScore >= 40) {
+  } else if (
+    normalizedScore >= 40
+  ) {
     trend = "neutral";
-  } else if (normalizedScore >= 20) {
+  } else if (
+    normalizedScore >= 20
+  ) {
     trend = "bearish";
   } else {
     trend = "strong_bearish";
