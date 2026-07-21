@@ -15,6 +15,11 @@ type ResearchData = Pick<
   | "risk"
   | "signal"
   | "reasons"
+  | "confidence"
+>;
+
+type ConfidenceData = NonNullable<
+  StockResearchResult["confidence"]
 >;
 
 type Props = {
@@ -100,6 +105,160 @@ function getSignalLabel(
     default:
       return "持有观察";
   }
+}
+
+function getConfidenceLabel(
+  level: ConfidenceData["level"]
+): string {
+  switch (level) {
+    case "high":
+      return "高";
+
+    case "medium":
+      return "中";
+
+    case "low":
+    default:
+      return "低";
+  }
+}
+
+function getConfidenceColor(
+  level: ConfidenceData["level"]
+): string {
+  switch (level) {
+    case "high":
+      return "#11845b";
+
+    case "medium":
+      return "#bd8400";
+
+    case "low":
+    default:
+      return "#c94343";
+  }
+}
+
+function translateConfidenceWarning(
+  warning: string
+): string {
+  const message = warning.toLowerCase();
+
+  if (
+    message.includes(
+      "current quote data is unavailable"
+    )
+  ) {
+    return "当前行情数据不可用";
+  }
+
+  if (
+    message.includes(
+      "current market price is unavailable"
+    )
+  ) {
+    return "当前市场价格不可用";
+  }
+
+  if (
+    message.includes(
+      "quote currency information is unavailable"
+    )
+  ) {
+    return "行情货币信息不可用";
+  }
+
+  if (
+    message.includes(
+      "quote update time is unavailable"
+    )
+  ) {
+    return "行情更新时间不可用";
+  }
+
+  if (
+    message.includes(
+      "historical chart data is unavailable"
+    )
+  ) {
+    return "历史K线数据不可用";
+  }
+
+  if (
+    message.includes(
+      "fewer than 200 valid candles"
+    )
+  ) {
+    return "有效K线少于200根，MA200的可靠性有限";
+  }
+
+  if (
+    message.includes(
+      "incomplete ohlc data"
+    )
+  ) {
+    return "部分历史K线的开盘、最高、最低或收盘数据不完整";
+  }
+
+  if (
+    message.includes(
+      "missing technical indicators"
+    )
+  ) {
+    const separatorIndex =
+      warning.indexOf(":");
+
+    const indicators =
+      separatorIndex >= 0
+        ? warning
+            .slice(separatorIndex + 1)
+            .replace(/\.$/, "")
+            .trim()
+        : "";
+
+    return indicators
+      ? `缺少技术指标：${indicators}`
+      : "部分技术指标不可用";
+  }
+
+  if (
+    message.includes(
+      "fundamental data is unavailable"
+    )
+  ) {
+    return "基本面数据不可用";
+  }
+
+  if (
+    message.includes(
+      "fundamental data coverage is"
+    )
+  ) {
+    const coverage =
+      warning.match(/\d+\s*\/\s*\d+/)?.[0];
+
+    return coverage
+      ? `基本面数据完整度为 ${coverage}`
+      : "部分基本面指标缺失";
+  }
+
+  if (
+    message.includes(
+      "finnhub_api_key is not configured"
+    )
+  ) {
+    return "Finnhub数据源暂未配置";
+  }
+
+  if (
+    message.includes(
+      "fundamentals are unavailable"
+    )
+  ) {
+    return "当前股票缺少可用的基本面数据";
+  }
+
+  return warning;
 }
 
 function translateReason(
@@ -276,15 +435,11 @@ function translateReason(
     return "RSI显示动量较强，但正在接近超买区域";
   }
 
-  if (
-    message.includes("overbought")
-  ) {
+  if (message.includes("overbought")) {
     return "RSI进入超买区域，短线存在回调风险";
   }
 
-  if (
-    message.includes("oversold")
-  ) {
+  if (message.includes("oversold")) {
     return "RSI进入超卖区域，当前动量仍然偏弱";
   }
 
@@ -377,9 +532,7 @@ function translateReason(
   }
 
   if (
-    message.includes(
-      "negative roe"
-    )
+    message.includes("negative roe")
   ) {
     return "ROE为负，公司的盈利能力需要进一步观察";
   }
@@ -524,6 +677,188 @@ function generateResearchText(
     strategy:
       `${strategy}当前综合信号为${signalLabel}。`,
   };
+}
+
+function ConfidenceSection({
+  confidence,
+}: {
+  confidence: ConfidenceData;
+}) {
+  const breakdownItems = [
+    {
+      label: "实时行情",
+      value:
+        confidence.breakdown.quote,
+    },
+    {
+      label: "历史K线",
+      value:
+        confidence.breakdown.chart,
+    },
+    {
+      label: "技术指标",
+      value:
+        confidence.breakdown.technical,
+    },
+    {
+      label: "基本面",
+      value:
+        confidence.breakdown.fundamentals,
+    },
+  ];
+
+  const translatedWarnings =
+    confidence.warnings
+      .map(
+        translateConfidenceWarning
+      )
+      .filter(
+        (warning, index, values) =>
+          values.indexOf(warning) ===
+          index
+      );
+
+  return (
+    <>
+      <hr
+        style={{
+          margin: "20px 0",
+          border: 0,
+          borderTop:
+            "1px solid #d6e1ea",
+        }}
+      />
+
+      <div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontWeight: 800,
+                color: "#0b2a4a",
+              }}
+            >
+              Data Confidence
+            </div>
+
+            <div
+              style={{
+                marginTop: 4,
+                color: "#60758a",
+                fontSize: 13,
+              }}
+            >
+              数据完整度与研究结果可信度
+            </div>
+          </div>
+
+          <div
+            style={{
+              color:
+                getConfidenceColor(
+                  confidence.level
+                ),
+              fontSize: 20,
+              fontWeight: 800,
+            }}
+          >
+            {confidence.score} / 100 ・{" "}
+            {getConfidenceLabel(
+              confidence.level
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: 10,
+          }}
+        >
+          {breakdownItems.map(
+            (item) => (
+              <div
+                key={item.label}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  background: "#f5f8fb",
+                  border:
+                    "1px solid #d6e1ea",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#60758a",
+                    fontSize: 12,
+                  }}
+                >
+                  {item.label}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: "#0b2a4a",
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  {item.value} / 100
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        {translatedWarnings.length >
+          0 && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 10,
+              background:
+                "#fff8e8",
+              border:
+                "1px solid #ead49b",
+              color: "#735313",
+              lineHeight: 1.7,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                marginBottom: 6,
+              }}
+            >
+              数据提示
+            </div>
+
+            {translatedWarnings.map(
+              (warning) => (
+                <div key={warning}>
+                  ・{warning}
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default function AIResearch({
@@ -695,6 +1030,14 @@ export default function AIResearch({
           {analysis.strategy}
         </div>
       </div>
+
+      {research?.confidence && (
+        <ConfidenceSection
+          confidence={
+            research.confidence
+          }
+        />
+      )}
     </section>
   );
 }
