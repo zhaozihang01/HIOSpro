@@ -1,19 +1,31 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+import LanguageProvider from "@/components/LanguageProvider";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "HIOS Pro",
-  description: "HIOS Intelligent Investment Research Platform",
+  description:
+    "HIOS Intelligent Investment Research Platform",
 };
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html
+      lang="zh-CN"
+      suppressHydrationWarning
+    >
+      <body>
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
+      </body>
     </html>
   );
 }
