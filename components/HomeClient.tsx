@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/components/LanguageProvider";
 import MorningReport from "@/components/MorningReport";
 import StockCard from "@/components/StockCard";
 import StockSearch from "@/components/StockSearch";
@@ -10,13 +15,20 @@ import Watchlist from "@/components/Watchlist";
 import { defaultWatchlist } from "@/data/watchlist";
 
 import type {
+  Locale,
+  TranslationMessages,
+  TranslationParams,
+} from "@/lib/i18n";
+
+import type {
   ResearchRisk,
   ResearchSignal,
   ResearchTrend,
   StockResearchResult,
 } from "@/lib/research";
 
-const STORAGE_KEY = "hios-watchlist";
+const STORAGE_KEY =
+  "hios-watchlist";
 
 type WatchlistStock = {
   name: string;
@@ -34,18 +46,30 @@ type ResearchErrorMap = Record<
   string
 >;
 
+type TranslateFunction = (
+  key: keyof TranslationMessages,
+  params?: TranslationParams
+) => string;
+
 function normalizeTicker(
   ticker: string
 ): string {
-  return ticker.trim().toUpperCase();
+  return ticker
+    .trim()
+    .toUpperCase();
 }
 
 function getErrorMessage(
   error: unknown
 ): string {
-  return error instanceof Error
-    ? error.message
-    : "未知错误";
+  if (
+    error instanceof Error &&
+    error.message.trim().length > 0
+  ) {
+    return error.message;
+  }
+
+  return "Unknown error";
 }
 
 function isValidWatchlistStock(
@@ -76,73 +100,102 @@ function normalizeWatchlistStock(
 ): WatchlistStock {
   return {
     name: stock.name.trim(),
-    ticker: normalizeTicker(
-      stock.ticker
-    ),
-    market: stock.market.trim(),
+
+    ticker:
+      normalizeTicker(
+        stock.ticker
+      ),
+
+    market:
+      stock.market.trim(),
   };
 }
 
 function getTrendText(
-  trend: ResearchTrend
+  trend: ResearchTrend,
+  t: TranslateFunction
 ): string {
   switch (trend) {
     case "strong_bullish":
-      return "强势上涨";
+      return t(
+        "trendStrongBullish"
+      );
 
     case "bullish":
-      return "偏多";
+      return t(
+        "trendBullish"
+      );
 
     case "bearish":
-      return "偏空";
+      return t(
+        "trendBearish"
+      );
 
     case "strong_bearish":
-      return "强势下跌";
+      return t(
+        "trendStrongBearish"
+      );
 
     case "neutral":
     default:
-      return "中性";
+      return t(
+        "trendNeutral"
+      );
   }
 }
 
 function getRiskText(
-  risk: ResearchRisk
+  risk: ResearchRisk,
+  t: TranslateFunction
 ): string {
   switch (risk) {
     case "low":
-      return "较低";
+      return t("riskLow");
 
     case "high":
-      return "较高";
+      return t("riskHigh");
 
     case "very_high":
-      return "很高";
+      return t(
+        "riskVeryHigh"
+      );
 
     case "medium":
     default:
-      return "中等";
+      return t(
+        "riskMedium"
+      );
   }
 }
 
 function getSignalText(
-  signal: ResearchSignal
+  signal: ResearchSignal,
+  t: TranslateFunction
 ): string {
   switch (signal) {
     case "strong_buy":
-      return "强烈买入";
+      return t(
+        "signalStrongBuy"
+      );
 
     case "buy":
-      return "买入";
+      return t("signalBuy");
 
     case "sell":
-      return "卖出";
+      return t(
+        "signalSell"
+      );
 
     case "strong_sell":
-      return "强烈卖出";
+      return t(
+        "signalStrongSell"
+      );
 
     case "hold":
     default:
-      return "持有观察";
+      return t(
+        "signalHold"
+      );
   }
 }
 
@@ -167,20 +220,93 @@ function getDecision(
 }
 
 function createResearchSummary(
-  research: StockResearchResult
+  research: StockResearchResult,
+  locale: Locale,
+  t: TranslateFunction
 ): string {
+  const trend =
+    getTrendText(
+      research.trend,
+      t
+    );
+
+  const risk =
+    getRiskText(
+      research.risk,
+      t
+    );
+
+  const signal =
+    getSignalText(
+      research.signal,
+      t
+    );
+
+  if (locale === "ja") {
+    return (
+      `Research Engine の総合スコアは` +
+      `${research.score.total}点です。` +
+      `現在のトレンドは「${trend}」、` +
+      `リスク水準は「${risk}」、` +
+      `総合シグナルは「${signal}」です。`
+    );
+  }
+
   return (
     `Research Engine 综合评分为` +
     `${research.score.total}分。` +
-    `当前趋势为${getTrendText(
-      research.trend
-    )}，` +
-    `风险等级为${getRiskText(
-      research.risk
-    )}，` +
-    `综合信号为${getSignalText(
-      research.signal
-    )}。`
+    `当前趋势为${trend}，` +
+    `风险等级为${risk}，` +
+    `综合信号为${signal}。`
+  );
+}
+
+function getLoadingSummary(
+  locale: Locale
+): string {
+  if (locale === "ja") {
+    return (
+      "Research Engine が、" +
+      "この銘柄のトレンド、モメンタム、" +
+      "価格変動、バリュエーションを分析しています……"
+    );
+  }
+
+  return (
+    "Research Engine " +
+    "正在分析该股票的趋势、" +
+    "动量、波动与估值数据……"
+  );
+}
+
+function getFailedSummary(
+  error: string,
+  locale: Locale,
+  t: TranslateFunction
+): string {
+  const normalizedError =
+    error.trim();
+
+  const detail =
+    normalizedError ===
+      "Unknown error" ||
+    normalizedError ===
+      "Research Engine data request failed."
+      ? t(
+          "errorResearchFailed"
+        )
+      : normalizedError;
+
+  if (locale === "ja") {
+    return (
+      "Research Engine の分析を" +
+      `一時的に完了できません：${detail}`
+    );
+  }
+
+  return (
+    "Research Engine " +
+    `暂时无法完成分析：${detail}`
   );
 }
 
@@ -198,7 +324,7 @@ async function getResearch(
 
   if (!response.ok) {
     let message =
-      `${ticker} Research Engine 数据读取失败`;
+      "Research Engine data request failed.";
 
     try {
       const body: unknown =
@@ -208,12 +334,16 @@ async function getResearch(
         typeof body === "object" &&
         body !== null &&
         "error" in body &&
-        typeof body.error === "string"
+        typeof body.error ===
+          "string" &&
+        body.error.trim().length >
+          0
       ) {
-        message = body.error;
+        message =
+          body.error;
       }
     } catch {
-      // 保留默认错误信息
+      // 返回内容不是JSON时保留默认错误信息
     }
 
     throw new Error(message);
@@ -223,6 +353,11 @@ async function getResearch(
 }
 
 export default function HomeClient() {
+  const {
+    locale,
+    t,
+  } = useLanguage();
+
   const [stocks, setStocks] =
     useState<WatchlistStock[]>(
       defaultWatchlist.map(
@@ -238,7 +373,9 @@ export default function HomeClient() {
   const [
     researchErrorMap,
     setResearchErrorMap,
-  ] = useState<ResearchErrorMap>({});
+  ] = useState<ResearchErrorMap>(
+    {}
+  );
 
   const [
     storageLoaded,
@@ -260,15 +397,19 @@ export default function HomeClient() {
       )
     );
 
-    setResearchMap((current) => {
-      const next = {
-        ...current,
-      };
+    setResearchMap(
+      (current) => {
+        const next = {
+          ...current,
+        };
 
-      delete next[normalizedTicker];
+        delete next[
+          normalizedTicker
+        ];
 
-      return next;
-    });
+        return next;
+      }
+    );
 
     setResearchErrorMap(
       (current) => {
@@ -299,7 +440,9 @@ export default function HomeClient() {
       const parsed: unknown =
         JSON.parse(saved);
 
-      if (!Array.isArray(parsed)) {
+      if (
+        !Array.isArray(parsed)
+      ) {
         window.localStorage.removeItem(
           STORAGE_KEY
         );
@@ -307,12 +450,21 @@ export default function HomeClient() {
         return;
       }
 
-      const validStocks = parsed
-        .filter(isValidWatchlistStock)
-        .map(normalizeWatchlistStock);
+      const validStocks =
+        parsed
+          .filter(
+            isValidWatchlistStock
+          )
+          .map(
+            normalizeWatchlistStock
+          );
 
-      if (validStocks.length > 0) {
-        setStocks(validStocks);
+      if (
+        validStocks.length > 0
+      ) {
+        setStocks(
+          validStocks
+        );
       } else {
         window.localStorage.removeItem(
           STORAGE_KEY
@@ -360,25 +512,30 @@ export default function HomeClient() {
         error
       );
     }
-  }, [stocks, storageLoaded]);
+  }, [
+    stocks,
+    storageLoaded,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const tickers = Array.from(
-      new Set(
-        stocks
-          .map((stock) =>
-            normalizeTicker(
-              stock.ticker
+    const tickers =
+      Array.from(
+        new Set(
+          stocks
+            .map((stock) =>
+              normalizeTicker(
+                stock.ticker
+              )
             )
-          )
-          .filter(
-            (ticker) =>
-              ticker.length > 0
-          )
-      )
-    );
+            .filter(
+              (ticker) =>
+                ticker.length >
+                0
+            )
+        )
+      );
 
     async function loadResearch() {
       setResearchErrorMap(
@@ -387,7 +544,9 @@ export default function HomeClient() {
             ...current,
           };
 
-          for (const ticker of tickers) {
+          for (
+            const ticker of tickers
+          ) {
             delete next[ticker];
           }
 
@@ -441,8 +600,9 @@ export default function HomeClient() {
                 result.reason
               );
 
-            failedResearch[ticker] =
-              message;
+            failedResearch[
+              ticker
+            ] = message;
 
             console.error(
               `${ticker} 首页 Research Engine 数据读取失败：`,
@@ -495,6 +655,18 @@ export default function HomeClient() {
 
   return (
     <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "flex-end",
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        <LanguageSwitcher />
+      </div>
+
       <MorningReport />
 
       <Watchlist
@@ -507,15 +679,21 @@ export default function HomeClient() {
               )
             )}`;
         }}
-        onRemove={handleRemove}
+        onRemove={
+          handleRemove
+        }
       />
 
       <StockSearch
         onSearch={(ticker) => {
           const normalizedTicker =
-            normalizeTicker(ticker);
+            normalizeTicker(
+              ticker
+            );
 
-          if (!normalizedTicker) {
+          if (
+            !normalizedTicker
+          ) {
             return;
           }
 
@@ -532,75 +710,83 @@ export default function HomeClient() {
           gap: "24px",
         }}
       >
-        {stocks.map((stock) => {
-          const normalizedTicker =
-            normalizeTicker(
-              stock.ticker
-            );
+        {stocks.map(
+          (stock) => {
+            const normalizedTicker =
+              normalizeTicker(
+                stock.ticker
+              );
 
-          const research =
-            researchMap[
-              normalizedTicker
-            ];
+            const research =
+              researchMap[
+                normalizedTicker
+              ];
 
-          const researchError =
-            researchErrorMap[
-              normalizedTicker
-            ];
+            const researchError =
+              researchErrorMap[
+                normalizedTicker
+              ];
 
-          const displayName =
-            research?.quote?.name ||
-            stock.name;
+            const displayName =
+              research
+                ?.quote
+                ?.name ||
+              stock.name;
 
-          const displaySummary =
-            research
-              ? createResearchSummary(
-                  research
-                )
-              : researchError
-                ? (
-                    "Research Engine " +
-                    "暂时无法完成分析：" +
-                    researchError
+            const displaySummary =
+              research
+                ? createResearchSummary(
+                    research,
+                    locale,
+                    t
                   )
-                : (
-                    "Research Engine " +
-                    "正在分析该股票的趋势、" +
-                    "动量、波动与估值数据……"
-                  );
+                : researchError
+                  ? getFailedSummary(
+                      researchError,
+                      locale,
+                      t
+                    )
+                  : getLoadingSummary(
+                      locale
+                    );
 
-          const displayDecision =
-            research
-              ? getDecision(
-                  research.signal
-                )
-              : "WAIT";
+            const displayDecision =
+              research
+                ? getDecision(
+                    research.signal
+                  )
+                : "WAIT";
 
-          return (
-            <StockCard
-              key={
-                normalizedTicker
-              }
-              name={displayName}
-              ticker={
-                normalizedTicker
-              }
-              market={stock.market}
-              decision={
-                displayDecision
-              }
-              summary={
-                displaySummary
-              }
-              researchScore={
-                research?.score
-              }
-              researchSignal={
-                research?.signal
-              }
-            />
-          );
-        })}
+            return (
+              <StockCard
+                key={
+                  normalizedTicker
+                }
+                name={
+                  displayName
+                }
+                ticker={
+                  normalizedTicker
+                }
+                market={
+                  stock.market
+                }
+                decision={
+                  displayDecision
+                }
+                summary={
+                  displaySummary
+                }
+                researchScore={
+                  research?.score
+                }
+                researchSignal={
+                  research?.signal
+                }
+              />
+            );
+          }
+        )}
       </div>
     </>
   );
