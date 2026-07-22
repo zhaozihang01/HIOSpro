@@ -1,4 +1,10 @@
+"use client";
+
+import { useLanguage } from "@/components/LanguageProvider";
+
 export default function Header() {
+  const { t } = useLanguage();
+
   return (
     <header
       style={{
@@ -13,18 +19,21 @@ export default function Header() {
         style={{
           margin: 0,
           fontSize: "34px",
+          lineHeight: 1.2,
         }}
       >
-        HIOS Morning Research
+        {t("homeTitle")}
       </h1>
 
       <p
         style={{
           marginTop: "8px",
+          marginBottom: 0,
           opacity: 0.85,
+          lineHeight: 1.6,
         }}
       >
-        Professional Investment Research Platform
+        {t("homeSubtitle")}
       </p>
     </header>
   );
