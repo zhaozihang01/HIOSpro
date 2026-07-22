@@ -42,6 +42,8 @@ type MetadataCardData = {
   updatedAt: string;
 };
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 function formatVolume(
   volume: number
 ): string {
@@ -211,18 +213,22 @@ function createMetadataCard(
 
   return {
     title,
+
     source:
       getSourceLabel(
         metadata.source
       ),
+
     status:
       getStatusLabel(
         metadata.status
       ),
+
     statusColor:
       getStatusColor(
         metadata.status
       ),
+
     updatedAt:
       formatDateTime(
         metadata.updatedAt
@@ -313,43 +319,114 @@ function getRiskText(
   }
 }
 
+function getResponseErrorMessage(
+  status: number,
+  fallback: string
+): string {
+  switch (status) {
+    case 400:
+      return "股票代码或请求参数不正确。";
+
+    case 404:
+      return "没有找到该股票代码，请确认代码是否正确。";
+
+    case 429:
+      return "行情数据请求过于频繁，请稍等片刻后重新尝试。";
+
+    case 500:
+      return "Research Engine 暂时发生内部错误，请稍后重试。";
+
+    case 502:
+    case 503:
+    case 504:
+      return "外部行情数据服务暂时不可用，请稍后重试。";
+
+    default:
+      return fallback;
+  }
+}
+
 async function getResearchData(
   ticker: string
 ): Promise<StockResearchResult> {
-  const response = await fetch(
-    `/api/market/${encodeURIComponent(
-      ticker
-    )}`,
-    {
-      cache: "no-store",
-    }
-  );
+  const controller =
+    new AbortController();
 
-  if (!response.ok) {
-    let message =
-      "Research Engine 数据读取失败";
+  const timeoutId =
+    window.setTimeout(() => {
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
 
-    try {
-      const body: unknown =
-        await response.json();
-
-      if (
-        typeof body === "object" &&
-        body !== null &&
-        "error" in body &&
-        typeof body.error ===
-          "string"
-      ) {
-        message = body.error;
+  try {
+    const response = await fetch(
+      `/api/market/${encodeURIComponent(
+        ticker
+      )}`,
+      {
+        cache: "no-store",
+        signal:
+          controller.signal,
       }
-    } catch {
-      // 保留默认错误信息
+    );
+
+    if (!response.ok) {
+      let message =
+        getResponseErrorMessage(
+          response.status,
+          "Research Engine 数据读取失败。"
+        );
+
+      try {
+        const body: unknown =
+          await response.json();
+
+        if (
+          typeof body === "object" &&
+          body !== null &&
+          "error" in body &&
+          typeof body.error ===
+            "string" &&
+          body.error.trim().length >
+            0
+        ) {
+          message =
+            getResponseErrorMessage(
+              response.status,
+              body.error
+            );
+        }
+      } catch {
+        // 返回内容不是JSON时，保留状态码对应提示
+      }
+
+      throw new Error(message);
     }
 
-    throw new Error(message);
-  }
+    return response.json() as Promise<StockResearchResult>;
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === "AbortError"
+    ) {
+      throw new Error(
+        "行情数据请求超时，请检查网络后重新尝试。"
+      );
+    }
 
-  return response.json() as Promise<StockResearchResult>;
+    if (
+      error instanceof TypeError
+    ) {
+      throw new Error(
+        "暂时无法连接行情数据服务，请检查网络后重试。"
+      );
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(
+      timeoutId
+    );
+  }
 }
 
 function MetadataCard({
@@ -572,6 +649,78 @@ function DataSourcesSection({
   );
 }
 
+function ErrorSection({
+  ticker,
+  message,
+  onRetry,
+}: {
+  ticker: string;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <section
+      style={{
+        padding: 24,
+        borderRadius: 16,
+        border:
+          "1px solid #efc0c0",
+        background: "#fff5f5",
+      }}
+    >
+      <div
+        style={{
+          color: "#c94343",
+          fontSize: 18,
+          fontWeight: 800,
+        }}
+      >
+        暂时无法读取 {ticker}
+      </div>
+
+      <div
+        style={{
+          marginTop: 10,
+          color: "#7f3c3c",
+          lineHeight: 1.7,
+        }}
+      >
+        {message}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: "#7a6666",
+          fontSize: 13,
+          lineHeight: 1.6,
+        }}
+      >
+        这通常是网络波动、数据源限流或外部服务暂时不可用造成的，不会影响已部署的评分逻辑。
+      </div>
+
+      <button
+        type="button"
+        onClick={onRetry}
+        style={{
+          marginTop: 18,
+          minWidth: 140,
+          padding: "11px 18px",
+          border: 0,
+          borderRadius: 10,
+          background: "#0b2a4a",
+          color: "#ffffff",
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        重新读取
+      </button>
+    </section>
+  );
+}
+
 export default function StockDetailClient({
   name,
   ticker,
@@ -588,6 +737,9 @@ export default function StockDetailClient({
 
   const [error, setError] =
     useState("");
+
+  const [reloadKey, setReloadKey] =
+    useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -624,7 +776,7 @@ export default function StockDetailClient({
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "股票详情读取失败"
+              : "股票详情读取失败，请稍后重试。"
           );
         }
       }
@@ -635,22 +787,25 @@ export default function StockDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [ticker]);
+  }, [
+    ticker,
+    reloadKey,
+  ]);
+
+  function handleRetry() {
+    setReloadKey(
+      (current) =>
+        current + 1
+    );
+  }
 
   if (error) {
     return (
-      <section
-        style={{
-          padding: 24,
-          borderRadius: 16,
-          border:
-            "1px solid #efc0c0",
-          background: "#fff5f5",
-          color: "#c94343",
-        }}
-      >
-        {ticker}：{error}
-      </section>
+      <ErrorSection
+        ticker={ticker}
+        message={error}
+        onRetry={handleRetry}
+      />
     );
   }
 
@@ -666,9 +821,9 @@ export default function StockDetailClient({
           color: "#52697d",
         }}
       >
-        正在读取 {ticker}{" "}
-        的行情与 Research
-        Engine 分析……
+        {reloadKey > 0
+          ? `正在重新读取 ${ticker} 的行情与 Research Engine 分析……`
+          : `正在读取 ${ticker} 的行情与 Research Engine 分析……`}
       </section>
     );
   }
@@ -704,7 +859,8 @@ export default function StockDetailClient({
     ),
 
     trend: Math.round(
-      research.score.trend * 0.2
+      research.score.trend *
+        0.2
     ),
 
     risk: Math.round(
