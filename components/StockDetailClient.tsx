@@ -40,7 +40,7 @@ type MetadataCardData = {
   source: string;
   status: string;
   statusColor: string;
-  updatedAt: string;
+  fetchedAt: string;
 };
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -208,7 +208,7 @@ function createMetadataCard(
       source: "--",
       status: "不可用",
       statusColor: "#c94343",
-      updatedAt: "--",
+      fetchedAt: "--",
     };
   }
 
@@ -230,7 +230,11 @@ function createMetadataCard(
         metadata.status
       ),
 
-    updatedAt:
+    /*
+     * metadata.updatedAt 当前表示
+     * 本次从数据源取得数据的时间。
+     */
+    fetchedAt:
       formatDateTime(
         metadata.updatedAt
       ),
@@ -524,7 +528,7 @@ function MetadataCard({
               marginBottom: 4,
             }}
           >
-            更新时间
+            获取时间
           </div>
 
           <div
@@ -534,7 +538,7 @@ function MetadataCard({
               lineHeight: 1.5,
             }}
           >
-            {item.updatedAt}
+            {item.fetchedAt}
           </div>
         </div>
       </div>
@@ -571,7 +575,7 @@ function DataSourcesSection({
         "HIOS Research Engine",
       status: "已生成",
       statusColor: "#11845b",
-      updatedAt:
+      fetchedAt:
         formatDateTime(
           research.generatedAt
         ),
@@ -611,7 +615,7 @@ function DataSourcesSection({
             lineHeight: 1.6,
           }}
         >
-          数据来源、可用状态及最后更新时间
+          数据来源、可用状态及本次获取时间
         </div>
       </div>
 
@@ -642,9 +646,7 @@ function DataSourcesSection({
           lineHeight: 1.7,
         }}
       >
-        行情可能存在延迟。HIOS
-        Research Engine
-        的评分和信号仅反映报告生成时可获得的数据。
+        上述时间表示本次从数据源取得数据或生成研究报告的时间，不一定代表交易所、公司或数据提供方最后更新数据的准确时间。行情可能存在延迟。
       </div>
     </section>
   );
