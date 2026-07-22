@@ -1,102 +1,373 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import { useLanguage } from "@/components/LanguageProvider";
+
 import {
   getMarketSnapshot,
   type MarketSnapshot,
 } from "@/lib/marketService";
-import { generateMarketAnalysis } from "@/lib/analysis";
+
+import {
+  generateMarketAnalysis,
+} from "@/lib/analysis";
+
+import type {
+  TranslationMessages,
+  TranslationParams,
+} from "@/lib/i18n";
 
 type MarketAnalysis = ReturnType<
   typeof generateMarketAnalysis
 >;
 
-function formatPercent(value: unknown): string {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value)
-  ) {
-    return "数据不可用";
-  }
+type TranslateFunction = (
+  key: keyof TranslationMessages,
+  params?: TranslationParams
+) => string;
 
-  const sign = value >= 0 ? "+" : "";
+type ReportError =
+  | ""
+  | "time"
+  | "market"
+  | "analysis";
 
-  return `${sign}${value.toFixed(2)}%`;
+function isValidNumber(
+  value: unknown
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  );
 }
 
-function formatNumber(value: unknown): string {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value)
-  ) {
-    return "数据不可用";
+function formatPercent(
+  value: unknown,
+  unavailableText: string
+): string {
+  if (!isValidNumber(value)) {
+    return unavailableText;
+  }
+
+  const sign =
+    value >= 0 ? "+" : "";
+
+  return `${sign}${value.toFixed(
+    2
+  )}%`;
+}
+
+function formatNumber(
+  value: unknown,
+  unavailableText: string
+): string {
+  if (!isValidNumber(value)) {
+    return unavailableText;
   }
 
   return value.toFixed(2);
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "发生未知错误";
+function getMarketDirectionText(
+  market: MarketSnapshot,
+  t: TranslateFunction
+): string {
+  const nikkei =
+    market.nikkei;
+
+  const topix =
+    market.topix;
+
+  if (
+    isValidNumber(nikkei) &&
+    isValidNumber(topix)
+  ) {
+    if (
+      nikkei > 0 &&
+      topix > 0
+    ) {
+      return t(
+        "morningReportMarketStrong"
+      );
+    }
+
+    if (
+      nikkei < 0 &&
+      topix < 0
+    ) {
+      return t(
+        "morningReportMarketWeak"
+      );
+    }
+  }
+
+  return t(
+    "morningReportMarketMixed"
+  );
+}
+
+function getCurrencyText(
+  analysis: MarketAnalysis | null,
+  t: TranslateFunction
+): string {
+  if (!analysis?.summary) {
+    return "";
+  }
+
+  const sourceText =
+    analysis.summary.toLowerCase();
+
+  const describesWeakYen =
+    sourceText.includes(
+      "日元处于偏弱"
+    ) ||
+    sourceText.includes(
+      "日元偏弱"
+    ) ||
+    sourceText.includes(
+      "円安"
+    ) ||
+    sourceText.includes(
+      "weak yen"
+    );
+
+  if (describesWeakYen) {
+    return t(
+      "morningReportYenWeak"
+    );
+  }
+
+  const describesStrongYen =
+    sourceText.includes(
+      "日元相对偏强"
+    ) ||
+    sourceText.includes(
+      "日元偏强"
+    ) ||
+    sourceText.includes(
+      "円高"
+    ) ||
+    sourceText.includes(
+      "strong yen"
+    );
+
+  if (describesStrongYen) {
+    return t(
+      "morningReportYenStrong"
+    );
+  }
+
+  return "";
+}
+
+function getLocalizedSummary(
+  locale: "zh" | "ja",
+  market: MarketSnapshot | null,
+  analysis: MarketAnalysis | null,
+  t: TranslateFunction
+): string {
+  if (!analysis) {
+    return locale === "ja"
+      ? "AI分析を生成中、または一時的に利用できません。"
+      : "AI分析正在生成或暂时不可用。";
+  }
+
+  if (locale === "zh") {
+    return analysis.summary;
+  }
+
+  if (!market) {
+    return t(
+      "errorExternalService"
+    );
+  }
+
+  const marketText =
+    getMarketDirectionText(
+      market,
+      t
+    );
+
+  const currencyText =
+    getCurrencyText(
+      analysis,
+      t
+    );
+
+  return [
+    marketText,
+    currencyText,
+  ]
+    .filter(
+      (text) =>
+        text.length > 0
+    )
+    .join(" ");
+}
+
+function getLocalizedRisk(
+  locale: "zh" | "ja",
+  analysis: MarketAnalysis | null,
+  t: TranslateFunction
+): string {
+  if (!analysis?.risk) {
+    return "";
+  }
+
+  if (locale === "zh") {
+    return analysis.risk;
+  }
+
+  return t(
+    "morningReportVolatilityHigh"
+  );
+}
+
+function getLocalizedStrategy(
+  locale: "zh" | "ja",
+  analysis: MarketAnalysis | null,
+  t: TranslateFunction
+): string {
+  if (!analysis?.strategy) {
+    return "";
+  }
+
+  if (locale === "zh") {
+    return analysis.strategy;
+  }
+
+  return t(
+    "morningReportStrategy"
+  );
+}
+
+function getErrorText(
+  error: ReportError,
+  locale: "zh" | "ja",
+  t: TranslateFunction
+): string {
+  switch (error) {
+    case "time":
+      return locale === "ja"
+        ? "日本時間を取得できません。"
+        : "日本时间读取失败。";
+
+    case "market":
+      return t(
+        "errorExternalService"
+      );
+
+    case "analysis":
+      return locale === "ja"
+        ? "AI分析を一時的に生成できません。"
+        : "AI分析暂时无法生成。";
+
+    default:
+      return "";
+  }
 }
 
 export default function MorningReport() {
-  const [japanTime, setJapanTime] =
-    useState("");
+  const {
+    locale,
+    t,
+  } = useLanguage();
 
-  const [market, setMarket] =
-    useState<MarketSnapshot | null>(null);
+  const [
+    japanTime,
+    setJapanTime,
+  ] = useState("");
 
-  const [analysis, setAnalysis] =
-    useState<MarketAnalysis | null>(null);
+  const [
+    market,
+    setMarket,
+  ] =
+    useState<MarketSnapshot | null>(
+      null
+    );
 
-  const [error, setError] =
-    useState("");
+  const [
+    analysis,
+    setAnalysis,
+  ] =
+    useState<MarketAnalysis | null>(
+      null
+    );
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<ReportError>("");
 
   useEffect(() => {
     function updateJapanTime() {
       try {
-        const now = new Date();
+        const now =
+          new Date();
 
         const formatted =
-          new Intl.DateTimeFormat("zh-CN", {
-            timeZone: "Asia/Tokyo",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            weekday: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          }).format(now);
+          new Intl.DateTimeFormat(
+            locale === "ja"
+              ? "ja-JP"
+              : "zh-CN",
+            {
+              timeZone:
+                "Asia/Tokyo",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              weekday: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            }
+          ).format(now);
 
-        setJapanTime(`${formatted} JST`);
+        setJapanTime(
+          `${formatted} JST`
+        );
+
+        setError(
+          (current) =>
+            current === "time"
+              ? ""
+              : current
+        );
       } catch (timeError) {
         console.error(
           "日本时间读取失败：",
           timeError
         );
 
-        setJapanTime("日本时间读取失败");
+        setJapanTime("");
+        setError("time");
       }
     }
 
     updateJapanTime();
 
-    const timer = window.setInterval(
-      updateJapanTime,
-      1000
-    );
+    const timer =
+      window.setInterval(
+        updateJapanTime,
+        1000
+      );
 
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(
+        timer
+      );
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled =
+      false;
 
     async function loadMorningReport() {
       try {
@@ -113,12 +384,18 @@ export default function MorningReport() {
 
         try {
           const generatedAnalysis =
-            generateMarketAnalysis(snapshot);
+            generateMarketAnalysis(
+              snapshot
+            );
 
           if (!cancelled) {
-            setAnalysis(generatedAnalysis);
+            setAnalysis(
+              generatedAnalysis
+            );
           }
-        } catch (analysisError) {
+        } catch (
+          analysisError
+        ) {
           console.error(
             "市场分析生成失败：",
             analysisError
@@ -127,13 +404,13 @@ export default function MorningReport() {
           if (!cancelled) {
             setAnalysis(null);
             setError(
-              `AI分析暂时无法生成：${getErrorMessage(
-                analysisError
-              )}`
+              "analysis"
             );
           }
         }
-      } catch (marketError) {
+      } catch (
+        marketError
+      ) {
         console.error(
           "市场数据读取失败：",
           marketError
@@ -142,11 +419,7 @@ export default function MorningReport() {
         if (!cancelled) {
           setMarket(null);
           setAnalysis(null);
-          setError(
-            `市场数据读取失败：${getErrorMessage(
-              marketError
-            )}`
-          );
+          setError("market");
         }
       }
     }
@@ -158,11 +431,44 @@ export default function MorningReport() {
     };
   }, []);
 
+  const unavailableText =
+    t("commonUnavailable");
+
+  const summaryText =
+    getLocalizedSummary(
+      locale,
+      market,
+      analysis,
+      t
+    );
+
+  const riskText =
+    getLocalizedRisk(
+      locale,
+      analysis,
+      t
+    );
+
+  const strategyText =
+    getLocalizedStrategy(
+      locale,
+      analysis,
+      t
+    );
+
+  const errorText =
+    getErrorText(
+      error,
+      locale,
+      t
+    );
+
   return (
     <section
       style={{
         background: "#ffffff",
-        border: "1px solid #d6e1ea",
+        border:
+          "1px solid #d6e1ea",
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
@@ -170,11 +476,15 @@ export default function MorningReport() {
     >
       <h2
         style={{
-          margin: "0 0 12px 0",
+          margin:
+            "0 0 12px 0",
           color: "#0b2a4a",
         }}
       >
-        🌅 HIOS Morning Report
+        🌅{" "}
+        {t(
+          "morningReportTitle"
+        )}
       </h2>
 
       <div
@@ -183,49 +493,71 @@ export default function MorningReport() {
           marginBottom: 16,
         }}
       >
-        {japanTime || "正在读取日本时间…"}
+        {japanTime ||
+          `${t(
+            "commonLoading"
+          )}…`}
       </div>
 
-      {error && (
+      {errorText && (
         <div
           style={{
             marginBottom: 16,
             padding: 12,
             borderRadius: 10,
             background: "#fff5f5",
-            border: "1px solid #f1c2c2",
+            border:
+              "1px solid #f1c2c2",
             color: "#c94343",
             lineHeight: 1.6,
           }}
         >
-          {error}
+          {errorText}
         </div>
       )}
 
-      <div style={{ lineHeight: 1.8 }}>
+      <div
+        style={{
+          lineHeight: 1.8,
+        }}
+      >
         <div>
-          📈 Nikkei225　
+          📈 Nikkei 225　
           {market
-            ? formatPercent(market.nikkei)
+            ? formatPercent(
+                market.nikkei,
+                unavailableText
+              )
             : "..."}
         </div>
 
         <div>
           📈 TOPIX　　　
           {market
-            ? formatPercent(market.topix)
+            ? formatPercent(
+                market.topix,
+                unavailableText
+              )
             : "..."}
         </div>
 
         <div>
-          💵 USDJPY　　
+          💵 USD/JPY　　
           {market
-            ? formatNumber(market.usdJpy)
+            ? formatNumber(
+                market.usdJpy,
+                unavailableText
+              )
             : "..."}
         </div>
       </div>
 
-      <hr style={{ margin: "16px 0" }} />
+      <hr
+        style={{
+          margin:
+            "16px 0",
+        }}
+      />
 
       <div
         style={{
@@ -233,7 +565,9 @@ export default function MorningReport() {
           marginBottom: 8,
         }}
       >
-        AI Summary
+        {t(
+          "morningReportSummaryTitle"
+        )}
       </div>
 
       <div
@@ -242,11 +576,10 @@ export default function MorningReport() {
           lineHeight: 1.8,
         }}
       >
-        {analysis?.summary ??
-          "AI分析正在生成或暂时不可用。"}
+        {summaryText}
       </div>
 
-      {analysis?.risk && (
+      {riskText && (
         <>
           <br />
 
@@ -256,12 +589,12 @@ export default function MorningReport() {
               lineHeight: 1.8,
             }}
           >
-            {analysis.risk}
+            {riskText}
           </div>
         </>
       )}
 
-      {analysis?.strategy && (
+      {strategyText && (
         <>
           <br />
 
@@ -271,7 +604,7 @@ export default function MorningReport() {
               lineHeight: 1.8,
             }}
           >
-            {analysis.strategy}
+            {strategyText}
           </div>
         </>
       )}
