@@ -7,6 +7,7 @@ import {
 
 import AIResearch from "@/components/AIResearch";
 import MarketStats from "@/components/MarketStats";
+import ResearchDisclaimer from "@/components/ResearchDisclaimer";
 import StockCard from "@/components/StockCard";
 
 import {
@@ -396,7 +397,7 @@ async function getResearchData(
             );
         }
       } catch {
-        // 返回内容不是JSON时，保留状态码对应提示
+        // 保留状态码对应提示
       }
 
       throw new Error(message);
@@ -952,6 +953,10 @@ export default function StockDetailClient({
         )}
         pe={peRatio}
         marketCap={marketCap}
+      />
+
+      <ResearchDisclaimer
+        version="1.0 Beta"
       />
     </>
   );
