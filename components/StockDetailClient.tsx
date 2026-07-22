@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import AIResearch from "@/components/AIResearch";
 import MarketStats from "@/components/MarketStats";
@@ -10,6 +13,10 @@ import {
   getStockData,
   type StockData,
 } from "@/lib/stockService";
+
+import type {
+  DataMetadata,
+} from "@/lib/market/types";
 
 import type {
   ResearchSignal,
@@ -27,7 +34,17 @@ type DisplayLabel =
   | "Watch"
   | "Avoid";
 
-function formatVolume(volume: number): string {
+type MetadataCardData = {
+  title: string;
+  source: string;
+  status: string;
+  statusColor: string;
+  updatedAt: string;
+};
+
+function formatVolume(
+  volume: number
+): string {
   if (
     typeof volume !== "number" ||
     !Number.isFinite(volume)
@@ -35,15 +52,23 @@ function formatVolume(volume: number): string {
     return "--";
   }
 
-  if (volume >= 1_000_000_000_000) {
+  if (
+    volume >=
+    1_000_000_000_000
+  ) {
     return `${(
-      volume / 1_000_000_000_000
+      volume /
+      1_000_000_000_000
     ).toFixed(2)}T`;
   }
 
-  if (volume >= 1_000_000_000) {
+  if (
+    volume >=
+    1_000_000_000
+  ) {
     return `${(
-      volume / 1_000_000_000
+      volume /
+      1_000_000_000
     ).toFixed(2)}B`;
   }
 
@@ -60,6 +85,149 @@ function formatVolume(volume: number): string {
   }
 
   return volume.toString();
+}
+
+function formatDateTime(
+  value:
+    | string
+    | null
+    | undefined
+): string {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "--";
+  }
+
+  const formatted =
+    new Intl.DateTimeFormat(
+      "zh-CN",
+      {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }
+    ).format(date);
+
+  return `${formatted} JST`;
+}
+
+function getSourceLabel(
+  source: DataMetadata["source"]
+): string {
+  switch (source) {
+    case "yahoo":
+      return "Yahoo Finance";
+
+    case "finnhub":
+      return "Finnhub";
+
+    case "jpx":
+      return "JPX";
+
+    case "sec":
+      return "SEC";
+
+    case "edinet":
+      return "EDINET";
+
+    case "manual":
+    default:
+      return "Manual";
+  }
+}
+
+function getStatusLabel(
+  status: DataMetadata["status"]
+): string {
+  switch (status) {
+    case "fresh":
+      return "最新";
+
+    case "delayed":
+      return "延迟";
+
+    case "stale":
+      return "已过期";
+
+    case "missing":
+      return "缺失";
+
+    case "unavailable":
+    default:
+      return "不可用";
+  }
+}
+
+function getStatusColor(
+  status: DataMetadata["status"]
+): string {
+  switch (status) {
+    case "fresh":
+      return "#11845b";
+
+    case "delayed":
+      return "#bd8400";
+
+    case "stale":
+      return "#d46b08";
+
+    case "missing":
+    case "unavailable":
+    default:
+      return "#c94343";
+  }
+}
+
+function createMetadataCard(
+  title: string,
+  metadata:
+    | DataMetadata
+    | null
+    | undefined
+): MetadataCardData {
+  if (!metadata) {
+    return {
+      title,
+      source: "--",
+      status: "不可用",
+      statusColor: "#c94343",
+      updatedAt: "--",
+    };
+  }
+
+  return {
+    title,
+    source:
+      getSourceLabel(
+        metadata.source
+      ),
+    status:
+      getStatusLabel(
+        metadata.status
+      ),
+    statusColor:
+      getStatusColor(
+        metadata.status
+      ),
+    updatedAt:
+      formatDateTime(
+        metadata.updatedAt
+      ),
+  };
 }
 
 function getDecision(
@@ -103,7 +271,8 @@ function getDisplayLabel(
 }
 
 function getTrendText(
-  trend: StockResearchResult["trend"]
+  trend:
+    StockResearchResult["trend"]
 ): string {
   switch (trend) {
     case "strong_bullish":
@@ -125,7 +294,8 @@ function getTrendText(
 }
 
 function getRiskText(
-  risk: StockResearchResult["risk"]
+  risk:
+    StockResearchResult["risk"]
 ): string {
   switch (risk) {
     case "low":
@@ -167,7 +337,8 @@ async function getResearchData(
         typeof body === "object" &&
         body !== null &&
         "error" in body &&
-        typeof body.error === "string"
+        typeof body.error ===
+          "string"
       ) {
         message = body.error;
       }
@@ -181,15 +352,239 @@ async function getResearchData(
   return response.json() as Promise<StockResearchResult>;
 }
 
+function MetadataCard({
+  item,
+}: {
+  item: MetadataCardData;
+}) {
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 12,
+        border:
+          "1px solid #d6e1ea",
+        background: "#f5f8fb",
+      }}
+    >
+      <div
+        style={{
+          color: "#0b2a4a",
+          fontWeight: 800,
+          marginBottom: 10,
+        }}
+      >
+        {item.title}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+          fontSize: 13,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              color: "#60758a",
+            }}
+          >
+            数据来源
+          </span>
+
+          <span
+            style={{
+              color: "#0b2a4a",
+              fontWeight: 700,
+              textAlign: "right",
+            }}
+          >
+            {item.source}
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              color: "#60758a",
+            }}
+          >
+            数据状态
+          </span>
+
+          <span
+            style={{
+              color:
+                item.statusColor,
+              fontWeight: 800,
+              textAlign: "right",
+            }}
+          >
+            {item.status}
+          </span>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#60758a",
+              marginBottom: 4,
+            }}
+          >
+            更新时间
+          </div>
+
+          <div
+            style={{
+              color: "#0b2a4a",
+              fontWeight: 700,
+              lineHeight: 1.5,
+            }}
+          >
+            {item.updatedAt}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DataSourcesSection({
+  research,
+}: {
+  research:
+    StockResearchResult;
+}) {
+  const cards: MetadataCardData[] = [
+    createMetadataCard(
+      "实时行情",
+      research.quote?.metadata
+    ),
+
+    createMetadataCard(
+      "历史K线",
+      research.chart.metadata
+    ),
+
+    createMetadataCard(
+      "基本面",
+      research.fundamentals
+        ?.metadata
+    ),
+
+    {
+      title: "研究报告",
+      source:
+        "HIOS Research Engine",
+      status: "已生成",
+      statusColor: "#11845b",
+      updatedAt:
+        formatDateTime(
+          research.generatedAt
+        ),
+    },
+  ];
+
+  return (
+    <section
+      style={{
+        marginTop: 24,
+        padding: 24,
+        background: "#ffffff",
+        border:
+          "1px solid #d6e1ea",
+        borderRadius: 16,
+      }}
+    >
+      <div
+        style={{
+          marginBottom: 16,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            color: "#0b2a4a",
+          }}
+        >
+          Data Sources & Updates
+        </h2>
+
+        <div
+          style={{
+            marginTop: 6,
+            color: "#60758a",
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          数据来源、可用状态及最后更新时间
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {cards.map((item) => (
+          <MetadataCard
+            key={item.title}
+            item={item}
+          />
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: 14,
+          padding: 12,
+          borderRadius: 10,
+          background: "#f5f8fb",
+          color: "#52697d",
+          fontSize: 13,
+          lineHeight: 1.7,
+        }}
+      >
+        行情可能存在延迟。HIOS
+        Research Engine
+        的评分和信号仅反映报告生成时可获得的数据。
+      </div>
+    </section>
+  );
+}
+
 export default function StockDetailClient({
   name,
   ticker,
 }: Props) {
   const [stock, setStock] =
-    useState<StockData | null>(null);
+    useState<StockData | null>(
+      null
+    );
 
   const [research, setResearch] =
-    useState<StockResearchResult | null>(null);
+    useState<StockResearchResult | null>(
+      null
+    );
 
   const [error, setError] =
     useState("");
@@ -216,7 +611,9 @@ export default function StockDetailClient({
         }
 
         setStock(stockData);
-        setResearch(researchData);
+        setResearch(
+          researchData
+        );
       } catch (loadError) {
         console.error(
           "股票详情读取失败：",
@@ -246,7 +643,8 @@ export default function StockDetailClient({
         style={{
           padding: 24,
           borderRadius: 16,
-          border: "1px solid #efc0c0",
+          border:
+            "1px solid #efc0c0",
           background: "#fff5f5",
           color: "#c94343",
         }}
@@ -262,12 +660,14 @@ export default function StockDetailClient({
         style={{
           padding: 24,
           borderRadius: 16,
-          border: "1px solid #d6e1ea",
+          border:
+            "1px solid #d6e1ea",
           background: "#ffffff",
           color: "#52697d",
         }}
       >
-        正在读取 {ticker} 的行情与 Research
+        正在读取 {ticker}{" "}
+        的行情与 Research
         Engine 分析……
       </section>
     );
@@ -279,10 +679,14 @@ export default function StockDetailClient({
     name;
 
   const stockDecision =
-    getDecision(research.signal);
+    getDecision(
+      research.signal
+    );
 
   const displayLabel =
-    getDisplayLabel(research.signal);
+    getDisplayLabel(
+      research.signal
+    );
 
   const summary =
     `Research Engine 综合评分为 ` +
@@ -295,7 +699,8 @@ export default function StockDetailClient({
 
   const aiBreakdown = {
     technical: Math.round(
-      research.score.momentum * 0.3
+      research.score.momentum *
+        0.3
     ),
 
     trend: Math.round(
@@ -303,21 +708,25 @@ export default function StockDetailClient({
     ),
 
     risk: Math.round(
-      research.score.volatility * 0.2
+      research.score.volatility *
+        0.2
     ),
 
     ai: Math.round(
-      research.score.valuation * 0.3
+      research.score.valuation *
+        0.3
     ),
   };
 
   const peRatio =
-    typeof research.fundamentals?.peRatio ===
-      "number" &&
+    typeof research.fundamentals
+      ?.peRatio === "number" &&
     Number.isFinite(
-      research.fundamentals.peRatio
+      research.fundamentals
+        .peRatio
     ) &&
-    research.fundamentals.peRatio > 0
+    research.fundamentals
+      .peRatio > 0
       ? Number(
           research.fundamentals.peRatio.toFixed(
             2
@@ -326,14 +735,17 @@ export default function StockDetailClient({
       : 0;
 
   const marketCap =
-    typeof research.fundamentals?.marketCap ===
-      "number" &&
+    typeof research.fundamentals
+      ?.marketCap === "number" &&
     Number.isFinite(
-      research.fundamentals.marketCap
+      research.fundamentals
+        .marketCap
     ) &&
-    research.fundamentals.marketCap > 0
+    research.fundamentals
+      .marketCap > 0
       ? formatVolume(
-          research.fundamentals.marketCap
+          research.fundamentals
+            .marketCap
         )
       : "--";
 
@@ -347,19 +759,31 @@ export default function StockDetailClient({
             ? "TSE"
             : "US"
         }
-        decision={stockDecision}
+        decision={
+          stockDecision
+        }
         summary={summary}
         stockData={stock}
-        researchScore={research.score}
-        researchSignal={research.signal}
+        researchScore={
+          research.score
+        }
+        researchSignal={
+          research.signal
+        }
       />
 
       <AIResearch
         name={displayName}
         ticker={ticker}
-        score={research.score.total}
+        score={
+          research.score.total
+        }
         label={displayLabel}
         breakdown={aiBreakdown}
+        research={research}
+      />
+
+      <DataSourcesSection
         research={research}
       />
 
@@ -367,7 +791,9 @@ export default function StockDetailClient({
         open={stock.open}
         high={stock.high}
         low={stock.low}
-        volume={formatVolume(stock.volume)}
+        volume={formatVolume(
+          stock.volume
+        )}
         pe={peRatio}
         marketCap={marketCap}
       />
